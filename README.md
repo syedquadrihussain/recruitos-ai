@@ -13,7 +13,7 @@ RecruitOS AI starts from a different question than **"which AI technology should
 Clone the repository:
 
 ```bash
-git clone https://github.com/hussainquadri/recruitos-ai.git
+git clone https://github.com/syedquadrihussain/recruitos-ai.git
 cd recruitos-ai
 ```
 
