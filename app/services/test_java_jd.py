@@ -3,73 +3,126 @@ from app.services.candidate_matcher import check_candidate
 
 
 # --------------------------------
-# Java Developer JD
-# --------------------------------
-
-jd_text = """
-We are looking for a Java Developer.
-
-Must Have:
-Java - 5 years
-SAP - 3 years
-
-Nice to Have:
-Docker
-AWS
-"""
-
-
-# --------------------------------
-# Candidate Resume
+# Sample Resume
 # --------------------------------
 
 resume_text = """
-Name: Ahmed
+Python Developer with 6 years of Python experience.
 
-Skills:
-Python
-FastAPI
-RAG
-Docker
+FastAPI 2 years.
 
-Python: 6 years
-FastAPI: 2 years
-RAG: 2 years
-Docker: 1 year
+RAG 2 years.
+
+Docker 1 year.
+
+Built Generative AI applications using Python,
+FastAPI and Retrieval Augmented Generation.
 """
 
 
 # --------------------------------
-# Step 1: Extract candidate
+# Java Job Description
 # --------------------------------
 
-candidate = extract_candidate(resume_text)
+jd_text = """
+Java Developer
+
+Must Have:
+
+Java 5 years
+SAP 3 years
+
+Nice to Have:
+
+Docker
+"""
+
+
+# --------------------------------
+# Extract Candidate
+# --------------------------------
+
+candidate = extract_candidate(
+    resume_text
+)
+
 
 print("\nEXTRACTED CANDIDATE:")
+
 print(candidate)
 
 
 # --------------------------------
-# Step 2: Match candidate with JD
+# Match Candidate
 # --------------------------------
 
-result = check_candidate(candidate, jd_text)
+result = check_candidate(
+    candidate,
+    jd_text,
+    resume_text
+)
 
-
-# --------------------------------
-# Step 3: Display result
-# --------------------------------
 
 print("\nMATCH RESULT:")
+
 print(result)
 
+
+# --------------------------------
+# Important Results
+# --------------------------------
+
 print("\n-------------------------")
-print("CANDIDATE:", result["name"])
-print("QUALIFIED:", result["qualified"])
-print("MATCH SCORE:", result["match_score"], "%")
-print("MATCHED SKILLS:", result["matched_skills"])
+
+print(
+    "CANDIDATE:",
+    result["name"]
+)
+
+print(
+    "QUALIFIED:",
+    result["qualified"]
+)
+
+print(
+    "RECOMMENDATION:",
+    result["recommendation"]
+)
+
+print(
+    "FINAL SCORE:",
+    result["final_score"],
+    "%"
+)
+
+print(
+    "RULE-BASED SCORE:",
+    result["rule_based_score"],
+    "%"
+)
+
+print(
+    "SEMANTIC SCORE:",
+    result["semantic_score"],
+    "%"
+)
+
+print(
+    "EXPERIENCE CLOSENESS:",
+    result["experience_closeness_score"],
+    "%"
+)
+
+print(
+    "MATCHED SKILLS:",
+    result["matched_skills"]
+)
 
 print("\nREASONS:")
 
 for reason in result["reasons"]:
-    print("-", reason)
+
+    print(
+        "-",
+        reason
+    )

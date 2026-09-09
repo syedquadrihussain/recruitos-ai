@@ -4,24 +4,26 @@ from app.services.candidate_ranker import rank_candidates
 
 
 # --------------------------------
-# Difficult Job Description
+# Job Description
 # --------------------------------
 
-jd_text = """
-We are looking for a Senior Python Developer.
+job_description = """
+Python Developer
 
 Must Have:
-Python - 10 years
-FastAPI - 8 years
+
+Python 10 years
+FastAPI 8 years
 
 Nice to Have:
+
 RAG
 Docker
 """
 
 
 # --------------------------------
-# Candidates
+# Candidate IDs
 # --------------------------------
 
 candidate_ids = [
@@ -40,21 +42,29 @@ screening_results = []
 
 for candidate_id in candidate_ids:
 
-    candidate = get_candidate(candidate_id)
-
-    result = check_candidate(
-        candidate,
-        jd_text
+    candidate = get_candidate(
+        candidate_id
     )
 
-    screening_results.append(result)
+    if candidate:
+
+        result = check_candidate(
+            candidate,
+            job_description
+        )
+
+        result["candidate_id"] = candidate_id
+
+        screening_results.append(
+            result
+        )
 
 
 # --------------------------------
 # Rank Candidates
 # --------------------------------
 
-ranked_candidates = rank_candidates(
+final_results = rank_candidates(
     screening_results
 )
 
@@ -63,33 +73,53 @@ ranked_candidates = rank_candidates(
 # Display Results
 # --------------------------------
 
-print("\n\nFINAL FALLBACK RESULTS:")
+print("\nFINAL FALLBACK RESULTS:")
 
-for rank, candidate in enumerate(
-    ranked_candidates,
+
+for position, candidate in enumerate(
+    final_results,
     start=1
 ):
 
     print("\n-------------------------")
 
-    print("Rank:", rank)
-
-    print("Candidate:", candidate["name"])
-
-    print("Qualified:", candidate["qualified"])
-
-    print("Match Score:", candidate["match_score"], "%")
-
     print(
-    "Experience Closeness:",
-    candidate["experience_closeness_score"],
-    "%"
+        "Rank:",
+        position
     )
 
-    print("Matched Skills:", candidate["matched_skills"])
+    print(
+        "Candidate:",
+        candidate["name"]
+    )
+
+    print(
+        "Qualified:",
+        candidate["qualified"]
+    )
+
+    print(
+        "Final Score:",
+        candidate["final_score"],
+        "%"
+    )
+
+    print(
+        "Experience Closeness:",
+        candidate["experience_closeness_score"],
+        "%"
+    )
+
+    print(
+        "Matched Skills:",
+        candidate["matched_skills"]
+    )
 
     print("Reasons:")
 
     for reason in candidate["reasons"]:
 
-        print("-", reason)
+        print(
+            "-",
+            reason
+        )

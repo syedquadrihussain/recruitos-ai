@@ -14,10 +14,6 @@ def extract_candidate(text):
 
     text_lower = text.lower()
 
-    # --------------------------------
-    # 1. Extract skills
-    # --------------------------------
-
     skills_to_find = [
         "Python",
         "FastAPI",
@@ -41,32 +37,31 @@ def extract_candidate(text):
         "Beeline"
     ]
 
+    # Find skills
     for skill in skills_to_find:
-
         if skill.lower() in text_lower:
-
             candidate["skills"].append(skill)
 
-    # --------------------------------
-    # 2. Extract overall experience
-    # --------------------------------
-
-    overall_experience_match = re.search(
+    # Find overall experience
+    overall_patterns = [
         r"(\d+)\+?\s*years?\s+of\s+experience",
-        text,
-        re.IGNORECASE
-    )
+        r"(\d+)\+?\s*years?\s+of\s+.*?experience"
+    ]
 
-    if overall_experience_match:
-
-        candidate["overall_experience"] = int(
-            overall_experience_match.group(1)
+    for pattern in overall_patterns:
+        match = re.search(
+            pattern,
+            text,
+            re.IGNORECASE
         )
 
-    # --------------------------------
-    # 3. Extract roles
-    # --------------------------------
+        if match:
+            candidate["overall_experience"] = int(
+                match.group(1)
+            )
+            break
 
+    # Find roles
     roles_to_find = [
         "Business Development Manager",
         "Lead Recruiter",
@@ -77,15 +72,10 @@ def extract_candidate(text):
     ]
 
     for role in roles_to_find:
-
         if role.lower() in text_lower:
-
             candidate["roles"].append(role)
 
-    # --------------------------------
-    # 4. Extract companies
-    # --------------------------------
-
+    # Find companies
     companies_to_find = [
         "Tek Wissen Software LLC",
         "Tachyon Technologies",
@@ -96,15 +86,10 @@ def extract_candidate(text):
     ]
 
     for company in companies_to_find:
-
         if company.lower() in text_lower:
-
             candidate["companies"].append(company)
 
-    # --------------------------------
-    # 5. Extract skill experience
-    # --------------------------------
-
+    # Find individual skill experience
     skills_for_experience = [
         "Python",
         "FastAPI",
@@ -117,18 +102,33 @@ def extract_candidate(text):
 
     for skill in skills_for_experience:
 
-        pattern = rf"{re.escape(skill)}\s*[:\-]?\s*(\d+)\+?\s*years?"
+        patterns = [
 
-        match = re.search(
-            pattern,
-            text,
-            re.IGNORECASE
-        )
+            # Example: Python: 6 years
+            rf"{re.escape(skill)}\s*[:\-]\s*(\d+)\+?\s*years?",
 
-        if match:
+            # Example: 6 years of Python experience
+            rf"(\d+)\+?\s*years?\s+of\s+{re.escape(skill)}\s+experience",
 
-            candidate["experience"][skill] = int(
-                match.group(1)
+            # Example: Python Developer with 6 years of Python experience
+            rf"{re.escape(skill)}\s+\w+\s+with\s+(\d+)\+?\s*years?\s+of\s+{re.escape(skill)}\s+experience",
+
+            # Example: FastAPI 2 years
+            rf"{re.escape(skill)}\s+(\d+)\+?\s*years?"
+        ]
+
+        for pattern in patterns:
+
+            match = re.search(
+                pattern,
+                text,
+                re.IGNORECASE
             )
+
+            if match:
+                candidate["experience"][skill] = int(
+                    match.group(1)
+                )
+                break
 
     return candidate

@@ -3,73 +3,94 @@ from app.services.candidate_matcher import check_candidate
 
 
 # --------------------------------
+# Sample Resume
+# --------------------------------
+
+resume_text = """
+Python Developer with 6 years of Python experience.
+
+FastAPI 2 years.
+
+RAG 2 years.
+
+Docker 1 year.
+
+Built Generative AI applications using Python,
+FastAPI and Retrieval Augmented Generation.
+"""
+
+
+# --------------------------------
 # Job Description
 # --------------------------------
 
 jd_text = """
-We are looking for a Python Developer.
+Python Developer
 
-Must have:
-Python - 5 years
-FastAPI - 3 years
+Must Have:
 
-Nice to have:
-RAG
+Python 5 years
+FastAPI 3 years
+RAG 2 years
+
+Nice to Have:
+
 Docker
 """
 
 
 # --------------------------------
-# Candidate Resume
+# Extract Candidate
 # --------------------------------
 
-resume_text = """
-Name: Ahmed
-
-Skills:
-Python
-FastAPI
-RAG
-Docker
-
-Python: 6 years
-FastAPI: 2 years
-RAG: 2 years
-Docker: 1 year
-"""
+candidate = extract_candidate(
+    resume_text
+)
 
 
-# --------------------------------
-# Step 1: Extract candidate
-# --------------------------------
+print("\nEXTRACTED CANDIDATE:\n")
 
-candidate = extract_candidate(resume_text)
-
-print("\nEXTRACTED CANDIDATE:")
 print(candidate)
 
 
 # --------------------------------
-# Step 2: Match candidate with JD
+# Match Candidate
 # --------------------------------
 
-result = check_candidate(candidate, jd_text)
+result = check_candidate(
+    candidate,
+    jd_text,
+    resume_text
+)
 
 
-# --------------------------------
-# Step 3: Display result
-# --------------------------------
+print("\nMATCH RESULT:\n")
 
-print("\nMATCH RESULT:")
 print(result)
 
-print("\n-------------------------")
-print("CANDIDATE:", result["name"])
-print("QUALIFIED:", result["qualified"])
-print("MATCH SCORE:", result["match_score"], "%")
-print("MATCHED SKILLS:", result["matched_skills"])
 
-print("\nREASONS:")
+# --------------------------------
+# Important Scores
+# --------------------------------
 
-for reason in result["reasons"]:
-    print("-", reason)
+print("\nSCORES:\n")
+
+print(
+    "Rule-Based Score:",
+    result["rule_based_score"]
+)
+
+print(
+    "Semantic Score:",
+    result["semantic_score"]
+)
+
+print(
+    "Final Score:",
+    result["final_score"]
+)
+
+print(
+    "Recommendation:",
+    result["recommendation"]
+)
