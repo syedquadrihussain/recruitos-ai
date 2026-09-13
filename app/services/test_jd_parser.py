@@ -1,29 +1,67 @@
 from app.services.jd_parser import parse_jd
 
 
-jd_text = """
-We are looking for a Python Developer.
+def test_parse_jd():
 
-Must Have:
-Python - 5 years
-FastAPI - 3 years
+    # --------------------------------
+    # Job Description
+    # --------------------------------
 
-Nice to Have:
-RAG
-Docker
-"""
+    jd_text = """
+    We are looking for a Python Developer.
 
+    Must Have:
 
-result = parse_jd(jd_text)
+    Python - 5 years
 
-print("\nPARSED JD:")
-print(result)
+    FastAPI - 3 years
 
-print("\nMUST HAVE:")
-print(result["must_have"])
+    Nice to Have:
 
-print("\nNICE TO HAVE:")
-print(result["nice_to_have"])
+    RAG
 
-print("\nSKILL WEIGHTS:")
-print(result["skill_weights"])
+    Docker
+    """
+
+    # --------------------------------
+    # Parse JD
+    # --------------------------------
+
+    result = parse_jd(jd_text)
+
+    # --------------------------------
+    # Verify Result Structure
+    # --------------------------------
+
+    assert result is not None
+
+    assert "must_have" in result
+    assert "nice_to_have" in result
+    assert "skill_weights" in result
+
+    # --------------------------------
+    # Verify Must-Have Skills
+    # --------------------------------
+
+    assert "Python" in result["must_have"]
+    assert "FastAPI" in result["must_have"]
+
+    assert result["must_have"]["Python"] == 5
+    assert result["must_have"]["FastAPI"] == 3
+
+    # --------------------------------
+    # Verify Nice-to-Have Skills
+    # --------------------------------
+
+    assert "RAG" in result["nice_to_have"]
+    assert "Docker" in result["nice_to_have"]
+
+    # --------------------------------
+    # Verify Skill Weights
+    # --------------------------------
+
+    assert result["skill_weights"]["Python"] == 3
+    assert result["skill_weights"]["FastAPI"] == 3
+
+    assert result["skill_weights"]["RAG"] == 1
+    assert result["skill_weights"]["Docker"] == 1
