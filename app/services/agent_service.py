@@ -1,4 +1,3 @@
-import json
 import os
 
 from dotenv import load_dotenv
@@ -9,217 +8,237 @@ from app.services.candidate_tools import (
     score_candidate
 )
 
-from app.services.human_approval import (
-    get_recruiter_approval
-)
+
+# Load environment variables from .env
+load_dotenv()
 
 
-load_dotenv(
-    r"C:\RecruitOS-AI\agent_learning\.env"
-)
+# Get Groq API key
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 
+if not GROQ_API_KEY:
+    raise ValueError(
+        "GROQ_API_KEY was not found. "
+        "Please create a .env file in the project root "
+        "and add GROQ_API_KEY=your_api_key"
+    )
+
+
+# Create Groq client
 client = Groq(
-    api_key=os.getenv("GROQ_API_KEY")
+    api_key=GROQ_API_KEY
 )
 
 
-tools = [
-    {
-        "type": "function",
-        "function": {
-            "name": "search_candidates",
-            "description": (
-                "Search real uploaded resumes based on a skill. "
-                "Returns candidates whose extracted skills contain "
-                "the requested skill."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "skill": {
-                        "type": "string",
-                        "description": (
-                            "The skill to search for."
-                        )
-                    }
-                },
-                "required": [
-                    "skill"
-                ]
+# RecruitOS AI system instructions
+SYSTEM_PROMPT = """
+You are RecruitOS AI, an AI recruiting decision-support assistant.
+
+Your job is to help recruiters search, evaluate, and understand
+candidate information.
+
+IMPORTANT RULES:
+
+1. Candidate information must come from RecruitOS tools.
+
+2. Tool results are the source of truth.
+
+3. Never invent candidate skills.
+
+4. Never invent candidate experience.
+
+5. Never invent companies or job responsibilities.
+
+6. Never infer years of experience that are not returned by the tool.
+
+7. When scoring a candidate, use the exact score returned by
+   the scoring tool.
+
+8. When qualification is returned by the scoring tool, report
+   that exact qualification result.
+
+9. When a recommendation is returned by the scoring tool,
+   report that exact recommendation.
+
+10. Do not make unsupported claims such as:
+    - "proven track record"
+    - "excellent candidate"
+    - "strong technical background"
+    unless the tool results explicitly support them.
+
+11. If the requested candidate or information is not available
+    from the tools, clearly say that it was not found.
+
+12. Do not fabricate information to satisfy the recruiter.
+
+13. The recruiter remains the final decision maker.
+
+RecruitOS AI assists the recruiter.
+It does not replace the recruiter's final decision.
+"""
+
+
+def run_agent(
+    user_request: str
+):
+    """
+    Run the RecruitOS AI agent.
+
+    This function receives a recruiter request,
+    decides which RecruitOS tool should be used,
+    executes the tool, and returns the result.
+    """
+
+    response = client.chat.completions.create(
+        model="openai/gpt-oss-20b",
+        temperature=0,
+        messages=[
+            {
+                "role": "system",
+                "content": SYSTEM_PROMPT
+            },
+            {
+                "role": "user",
+                "content": user_request
             }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "score_candidate",
-            "description": (
-                "Score a specific candidate against a job description. "
-                "Returns qualification status, recommendation, "
-                "matched skills, experience matching, semantic score, "
-                "and final score."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": (
-                            "The exact candidate name returned "
-                            "by search_candidates."
-                        )
-                    },
-                    "job_description": {
-                        "type": "string",
-                        "description": (
-                            "The complete job description used "
-                            "to evaluate the candidate."
-                        )
+        ],
+        tools=[
+            {
+                "type": "function",
+                "function": {
+                    "name": "search_candidates",
+                    "description": (
+                        "Search RecruitOS candidates by skill."
+                    ),
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "skill": {
+                                "type": "string",
+                                "description": (
+                                    "Skill to search for."
+                                )
+                            }
+                        },
+                        "required": ["skill"]
                     }
-                },
-                "required": [
-                    "name",
-                    "job_description"
-                ]
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "score_candidate",
+                    "description": (
+                        "Score a candidate against a "
+                        "job description."
+                    ),
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": (
+                                    "Candidate name."
+                                )
+                            },
+                            "job_description": {
+                                "type": "string",
+                                "description": (
+                                    "Job description used "
+                                    "for candidate scoring."
+                                )
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "job_description"
+                        ]
+                    }
+                }
             }
-        }
-    }
-]
+        ],
+        tool_choice="auto"
+    )
 
+    message = response.choices[0].message
 
-def run_agent(user_request):
+    # If the model does not request a tool,
+    # return its normal response.
+    if not message.tool_calls:
+        return message.content
 
+    tool_results = []
+
+    for tool_call in message.tool_calls:
+
+        function_name = tool_call.function.name
+
+        arguments = tool_call.function.arguments
+
+        import json
+
+        arguments = json.loads(arguments)
+
+        if function_name == "search_candidates":
+
+            result = search_candidates(
+                arguments["skill"]
+            )
+
+        elif function_name == "score_candidate":
+
+            result = score_candidate(
+                arguments["name"],
+                arguments["job_description"]
+            )
+
+        else:
+
+            result = {
+                "error": (
+                    f"Unknown tool: {function_name}"
+                )
+            }
+
+        tool_results.append(
+            {
+                "tool_call_id": tool_call.id,
+                "result": result
+            }
+        )
+
+    # Send tool results back to the LLM
     messages = [
         {
             "role": "system",
-            "content": (
-                "You are RecruitOS AI, an AI recruiting assistant.\n\n"
-
-                "GROUNDING RULES:\n"
-
-                "1. Tool results are the source of truth.\n"
-
-                "2. Never invent candidate skills, experience, "
-                "companies, responsibilities, achievements, "
-                "qualifications, or work history.\n"
-
-                "3. Only report information explicitly present "
-                "in the tool results or the user's request.\n"
-
-                "4. Do not turn a skill into a claim about "
-                "performance or achievement.\n"
-
-                "5. Do not use phrases such as 'proven track record', "
-                "'hands-on experience', 'extensive experience', "
-                "'strong background', 'successfully managed', "
-                "or similar claims unless the tool result explicitly "
-                "contains that information.\n"
-
-                "6. Do not infer responsibilities from a job title.\n"
-
-                "7. Do not infer years of experience unless the "
-                "tool result explicitly provides those years.\n"
-
-                "8. If information is not available, say: "
-                "'Not available in the candidate data.'\n"
-
-                "9. When score_candidate returns final_score, "
-                "qualified, or recommendation, report those values "
-                "exactly.\n"
-
-                "10. Never change, round, reinterpret, or estimate "
-                "numerical scores returned by the tool.\n"
-
-                "11. Recruiter decisions are human decisions. "
-                "Report the recruiter decision exactly as returned "
-                "by the human approval step.\n"
-
-                "12. Do not make a new hiring decision after the "
-                "recruiter has made a decision.\n"
-
-                "13. Keep the final answer concise and factual.\n\n"
-
-                "FINAL ANSWER FORMAT:\n"
-
-                "Candidate: <candidate name>\n"
-                "Final Score: <exact score>\n"
-                "Qualified: <exact value>\n"
-                "AI Recommendation: <exact recommendation>\n"
-                "Recruiter Decision: <exact recruiter decision>\n\n"
-
-                "Then list only the matched skills and explicitly "
-                "available experience information."
-            )
+            "content": SYSTEM_PROMPT
         },
         {
             "role": "user",
             "content": user_request
-        }
+        },
+        message
     ]
 
-    while True:
+    for tool_result in tool_results:
 
-        response = client.chat.completions.create(
-            model="openai/gpt-oss-20b",
-            messages=messages,
-            tools=tools,
-            tool_choice="auto",
-            parallel_tool_calls=False,
-            temperature=0
+        messages.append(
+            {
+                "role": "tool",
+                "tool_call_id": tool_result[
+                    "tool_call_id"
+                ],
+                "content": json.dumps(
+                    tool_result["result"]
+                )
+            }
         )
 
-        message = response.choices[0].message
+    final_response = client.chat.completions.create(
+        model="openai/gpt-oss-20b",
+        temperature=0,
+        messages=messages
+    )
 
-        if message.tool_calls:
-
-            messages.append(message)
-
-            for tool_call in message.tool_calls:
-
-                tool_name = tool_call.function.name
-
-                arguments = json.loads(
-                    tool_call.function.arguments
-                )
-
-                if tool_name == "search_candidates":
-
-                    tool_result = search_candidates(
-                        arguments["skill"]
-                    )
-
-                elif tool_name == "score_candidate":
-
-                    tool_result = score_candidate(
-                        arguments["name"],
-                        arguments["job_description"]
-                    )
-
-                    approval_result = get_recruiter_approval(
-                        tool_result
-                    )
-
-                    tool_result["recruiter_decision"] = (
-                        approval_result["recruiter_decision"]
-                    )
-
-                else:
-
-                    tool_result = {
-                        "error": "Unknown tool."
-                    }
-
-                messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "content": json.dumps(
-                            tool_result
-                        )
-                    }
-                )
-
-            continue
-
-        return message.content
+    return final_response.choices[0].message.content

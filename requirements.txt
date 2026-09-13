@@ -6,3 +6,8 @@ python-docx
 sentence-transformers
 faiss-cpu
 numpy
+groq
+python-dotenv
+langchain
+langchain-groq
+langgraph
