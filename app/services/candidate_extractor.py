@@ -19,11 +19,10 @@ def extract_candidate(text):
     # --------------------------------------------------
 
     name_patterns = [
-        r"(?:Name|Candidate Name)\s*[:\-]\s*([A-Za-z]+(?:\s+[A-Za-z]+){1,3})"
+        r"(?:Name|Candidate Name)\s*[:\-]\s*([A-Za-z]+(?:[ \t]+[A-Za-z]+){0,3})"
     ]
 
     for pattern in name_patterns:
-
         match = re.search(
             pattern,
             text,
@@ -31,9 +30,7 @@ def extract_candidate(text):
         )
 
         if match:
-
             candidate["name"] = match.group(1).strip()
-
             break
 
     # --------------------------------------------------
@@ -66,7 +63,6 @@ def extract_candidate(text):
     for skill in skills_to_find:
 
         if skill.lower() in text_lower:
-
             candidate["skills"].append(skill)
 
     # --------------------------------------------------
@@ -87,11 +83,9 @@ def extract_candidate(text):
         )
 
         if match:
-
             candidate["overall_experience"] = int(
                 match.group(1)
             )
-
             break
 
     # --------------------------------------------------
@@ -110,7 +104,6 @@ def extract_candidate(text):
     for role in roles_to_find:
 
         if role.lower() in text_lower:
-
             candidate["roles"].append(role)
 
     # --------------------------------------------------
@@ -129,11 +122,10 @@ def extract_candidate(text):
     for company in companies_to_find:
 
         if company.lower() in text_lower:
-
             candidate["companies"].append(company)
 
     # --------------------------------------------------
-    # Explicit Skill Experience
+    # Skill Experience
     # --------------------------------------------------
 
     skills_for_experience = [
