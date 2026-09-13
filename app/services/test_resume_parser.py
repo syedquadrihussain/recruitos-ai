@@ -1,30 +1,40 @@
+from pathlib import Path
+
 from app.services.resume_parser import extract_text_from_pdf
 
 
-file_path = "uploads/Syed Hussain BDM.pdf"
+def test_resume_parser():
 
+    file_path = "uploads/Syed Hussain BDM.pdf"
 
-text = extract_text_from_pdf(
-    file_path
-)
+    # --------------------------------
+    # Verify Resume Exists
+    # --------------------------------
 
+    assert Path(file_path).exists()
 
-print("\nRESUME PARSER TEST RESULT:")
+    # --------------------------------
+    # Extract Resume Text
+    # --------------------------------
 
-print(
-    "Extracted characters:",
-    len(text)
-)
+    text = extract_text_from_pdf(
+        file_path
+    )
 
-print("\nFirst 1000 characters:\n")
+    # --------------------------------
+    # Validate Extracted Text
+    # --------------------------------
 
-print(text[:1000])
+    assert text is not None
+    assert isinstance(text, str)
+    assert text.strip() != ""
 
+    # --------------------------------
+    # Validate Extracted Content
+    # --------------------------------
 
-if text.strip():
+    assert len(text) > 100
 
-    print("\nResume parser test: PASS")
-
-else:
-
-    print("\nResume parser test: FAIL")
+    assert "Summary" in text
+    assert "Professional Experience" in text
+    assert "Education" in text

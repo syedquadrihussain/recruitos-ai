@@ -6,305 +6,341 @@ from app.services.vector_store import search_embeddings, load_chunks
 from app.services.embedding_service import create_embeddings
 
 
-# --------------------------------
-# Job Description
-# --------------------------------
+def test_multi_candidate_pipeline():
 
-job_description = """
-Python Developer
+    # --------------------------------
+    # Job Description
+    # --------------------------------
 
-Must Have:
+    job_description = """
+    Python Developer
 
-Python 5 years
-FastAPI 3 years
+    Must Have:
 
-Nice to Have:
+    Python 5 years
+    FastAPI 3 years
 
-RAG
-Docker
-"""
+    Nice to Have:
 
+    RAG
+    Docker
+    """
 
-# --------------------------------
-# Search Query
-# --------------------------------
+    # --------------------------------
+    # Search Query
+    # --------------------------------
 
-query = "Python FastAPI RAG Developer"
+    query = "Python FastAPI RAG Developer"
 
-print("\nQUERY:")
-print(query)
+    assert query.strip() != ""
 
+    # --------------------------------
+    # Create Query Embedding
+    # --------------------------------
 
-# --------------------------------
-# Create Query Embedding
-# --------------------------------
+    query_embedding = create_embeddings(
+        [query]
+    )[0]
 
-query_embedding = create_embeddings(
-    [query]
-)[0]
+    assert query_embedding is not None
 
+    assert len(query_embedding) > 0
 
-# --------------------------------
-# Load Chunks
-# --------------------------------
+    # --------------------------------
+    # Load Chunks
+    # --------------------------------
 
-chunks = load_chunks()
+    chunks = load_chunks()
 
+    assert chunks is not None
 
-# --------------------------------
-# Search FAISS
-# --------------------------------
-
-results = search_embeddings(
-    query_embedding,
-    chunks,
-    top_k=5
-)
-
-
-print("\nTOP MATCHING CHUNKS:\n")
-
-
-for result in results:
-
-    print("-------------------------")
-
-    print(
-        "Candidate ID:",
-        result["candidate_id"]
+    assert isinstance(
+        chunks,
+        list
     )
 
-    print(
-        "Resume:",
-        result["resume_name"]
+    assert len(chunks) > 0
+
+    # --------------------------------
+    # Search FAISS
+    # --------------------------------
+
+    results = search_embeddings(
+        query_embedding,
+        chunks,
+        top_k=5
     )
 
-    print(
-        "Distance:",
-        result["distance"]
+    assert results is not None
+
+    assert isinstance(
+        results,
+        list
     )
 
-    print("Chunk:")
-    print(result["chunk"])
+    assert len(results) > 0
 
+    assert len(results) <= 5
 
-# --------------------------------
-# Get Unique Candidates
-# --------------------------------
+    # --------------------------------
+    # Validate Retrieved Results
+    # --------------------------------
 
-candidate_ids = []
+    for result in results:
 
-for result in results:
+        assert "candidate_id" in result
+        assert "resume_name" in result
+        assert "distance" in result
+        assert "chunk" in result
 
-    candidate_id = result["candidate_id"]
-
-    if candidate_id not in candidate_ids:
-
-        candidate_ids.append(candidate_id)
-
-
-print("\nCANDIDATES FOUND BY FAISS:")
-
-for candidate_id in candidate_ids:
-
-    print(
-        "-",
-        candidate_id
-    )
-
-
-# --------------------------------
-# Get Candidate Profiles
-# --------------------------------
-
-candidates = []
-
-for candidate_id in candidate_ids:
-
-    candidate = get_candidate(
-        candidate_id
-    )
-
-    if candidate:
-
-        candidate_copy = candidate.copy()
-
-        candidate_copy["candidate_id"] = candidate_id
-
-        candidates.append(
-            candidate_copy
+        assert isinstance(
+            result["candidate_id"],
+            str
         )
 
+        assert isinstance(
+            result["resume_name"],
+            str
+        )
 
-# --------------------------------
-# Rerank Candidates
-# --------------------------------
+        assert isinstance(
+            result["chunk"],
+            str
+        )
 
-required_skills = [
-    "Python",
-    "FastAPI",
-    "RAG",
-    "Docker"
-]
+    # --------------------------------
+    # Get Unique Candidates
+    # --------------------------------
 
+    candidate_ids = []
 
-reranked_candidates = rerank_candidates(
-    candidates,
-    required_skills
-)
+    for result in results:
 
+        candidate_id = result["candidate_id"]
 
-reranked_candidates.sort(
-    key=lambda candidate: candidate["score"],
-    reverse=True
-)
+        if candidate_id not in candidate_ids:
 
+            candidate_ids.append(
+                candidate_id
+            )
 
-print("\nRERANKED CANDIDATES:")
+    assert len(candidate_ids) > 0
 
-for position, candidate in enumerate(
-    reranked_candidates,
-    start=1
-):
+    # --------------------------------
+    # Get Candidate Profiles
+    # --------------------------------
 
-    print(
-        position,
-        candidate["name"],
-        "-",
-        candidate["score"],
-        "matched skills"
-    )
+    candidates = []
 
+    for candidate_id in candidate_ids:
 
-# --------------------------------
-# Screen Candidates
-# --------------------------------
+        candidate = get_candidate(
+            candidate_id
+        )
 
-screening_results = []
+        if candidate:
 
+            candidate_copy = candidate.copy()
 
-for candidate in reranked_candidates:
+            candidate_copy["candidate_id"] = (
+                candidate_id
+            )
 
-    result = check_candidate(
-        candidate,
-        job_description
-    )
+            candidates.append(
+                candidate_copy
+            )
 
-    result["candidate_id"] = candidate[
-        "candidate_id"
+    assert len(candidates) > 0
+
+    # --------------------------------
+    # Rerank Candidates
+    # --------------------------------
+
+    required_skills = [
+        "Python",
+        "FastAPI",
+        "RAG",
+        "Docker"
     ]
 
-    screening_results.append(
-        result
+    reranked_candidates = rerank_candidates(
+        candidates,
+        required_skills
     )
 
+    assert reranked_candidates is not None
 
-# --------------------------------
-# Candidate Screening Results
-# --------------------------------
-
-print("\nCANDIDATE SCREENING RESULTS:")
-
-
-for result in screening_results:
-
-    print("\n-------------------------")
-
-    print(
-        "Candidate:",
-        result["name"]
+    assert isinstance(
+        reranked_candidates,
+        list
     )
 
-    print(
-        "Qualified:",
-        result["qualified"]
-    )
+    assert len(reranked_candidates) > 0
 
-    print(
-        "Recommendation:",
-        result["recommendation"]
-    )
+    for candidate in reranked_candidates:
 
-    print(
-        "Final Score:",
-        result["final_score"],
-        "%"
-    )
+        assert "candidate_id" in candidate
+        assert "name" in candidate
+        assert "score" in candidate
 
-    print("Must Have Results:")
-
-    for skill_result in result[
-        "must_have_results"
-    ]:
-
-        print(
-            "-",
-            skill_result["skill"],
-            ":",
-            skill_result["status"],
-            "(Required:",
-            skill_result["required"],
-            "years, Candidate:",
-            skill_result["candidate"],
-            "years)"
+        assert isinstance(
+            candidate["score"],
+            (int, float)
         )
 
-    print(
-        "Matched Skills:",
-        result["matched_skills"]
+    # --------------------------------
+    # Verify Reranking Order
+    # --------------------------------
+
+    reranked_candidates.sort(
+        key=lambda candidate: candidate["score"],
+        reverse=True
     )
 
-    print("Reasons:")
+    rerank_scores = [
+        candidate["score"]
+        for candidate in reranked_candidates
+    ]
 
-    for reason in result["reasons"]:
+    assert rerank_scores == sorted(
+        rerank_scores,
+        reverse=True
+    )
 
-        print(
-            "-",
-            reason
+    # --------------------------------
+    # Screen Candidates
+    # --------------------------------
+
+    screening_results = []
+
+    for candidate in reranked_candidates:
+
+        result = check_candidate(
+            candidate,
+            job_description
         )
 
+        result["candidate_id"] = (
+            candidate["candidate_id"]
+        )
 
-# --------------------------------
-# Final Candidate Ranking
-# --------------------------------
+        screening_results.append(
+            result
+        )
 
-final_ranking = rank_candidates(
-    screening_results
-)
-
-
-print("\nFINAL CANDIDATE RANKING:")
-
-
-for position, candidate in enumerate(
-    final_ranking,
-    start=1
-):
-
-    print("\n-------------------------")
-
-    print(
-        "Rank:",
-        position
+    assert len(screening_results) == len(
+        reranked_candidates
     )
 
-    print(
-        "Candidate:",
-        candidate["name"]
+    # --------------------------------
+    # Validate Screening Results
+    # --------------------------------
+
+    for result in screening_results:
+
+        assert "candidate_id" in result
+        assert "name" in result
+        assert "qualified" in result
+        assert "recommendation" in result
+        assert "final_score" in result
+        assert "must_have_results" in result
+        assert "matched_skills" in result
+        assert "reasons" in result
+
+        assert isinstance(
+            result["qualified"],
+            bool
+        )
+
+        assert isinstance(
+            result["recommendation"],
+            str
+        )
+
+        assert isinstance(
+            result["final_score"],
+            (int, float)
+        )
+
+        assert 0 <= result["final_score"] <= 100
+
+        assert isinstance(
+            result["must_have_results"],
+            list
+        )
+
+        assert isinstance(
+            result["matched_skills"],
+            list
+        )
+
+        assert isinstance(
+            result["reasons"],
+            list
+        )
+
+    # --------------------------------
+    # Final Candidate Ranking
+    # --------------------------------
+
+    final_ranking = rank_candidates(
+        screening_results
     )
 
-    print(
-        "Qualified:",
-        candidate["qualified"]
+    assert final_ranking is not None
+
+    assert isinstance(
+        final_ranking,
+        list
     )
 
-    print(
-        "Recommendation:",
-        candidate["recommendation"]
+    assert len(final_ranking) == len(
+        screening_results
     )
 
-    print(
-        "Final Score:",
-        candidate["final_score"],
-        "%"
+    # --------------------------------
+    # Validate Final Ranking
+    # --------------------------------
+
+    final_scores = []
+
+    for position, candidate in enumerate(
+        final_ranking,
+        start=1
+    ):
+
+        assert "candidate_id" in candidate
+        assert "name" in candidate
+        assert "qualified" in candidate
+        assert "recommendation" in candidate
+        assert "final_score" in candidate
+
+        assert isinstance(
+            candidate["qualified"],
+            bool
+        )
+
+        assert isinstance(
+            candidate["recommendation"],
+            str
+        )
+
+        assert isinstance(
+            candidate["final_score"],
+            (int, float)
+        )
+
+        assert 0 <= candidate["final_score"] <= 100
+
+        final_scores.append(
+            candidate["final_score"]
+        )
+
+    # --------------------------------
+    # Verify Final Ranking Order
+    # --------------------------------
+
+    assert final_scores == sorted(
+        final_scores,
+        reverse=True
     )

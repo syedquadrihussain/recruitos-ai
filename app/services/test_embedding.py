@@ -2,46 +2,39 @@ from app.services.embedding_service import create_embeddings
 from app.services.vector_store import add_embeddings, get_index_size
 
 
-chunks = [
-    "Python Developer with 6 years of experience.",
-    "Strong experience in RAG, LangChain and FastAPI.",
-    "Built production GenAI applications."
-]
+def test_create_and_store_embeddings():
 
+    chunks = [
+        "Python Developer with 6 years of experience.",
+        "Strong experience in RAG, LangChain and FastAPI.",
+        "Built production GenAI applications."
+    ]
 
-embeddings = create_embeddings(chunks)
+    embeddings = create_embeddings(chunks)
 
+    assert embeddings is not None
+    assert len(embeddings) == len(chunks)
+    assert len(embeddings) > 0
+    assert len(embeddings[0]) > 0
 
-add_embeddings(
-    embeddings,
-    chunks,
-    "test_candidate_001",
-    "test_resume.txt"
-)
+    vector_dimensions = len(embeddings[0])
 
+    assert all(
+        len(embedding) == vector_dimensions
+        for embedding in embeddings
+    )
 
-print("\nEMBEDDING TEST RESULT:")
+    initial_index_size = get_index_size()
 
-print(
-    "Number of chunks:",
-    len(chunks)
-)
+    add_embeddings(
+        embeddings,
+        chunks,
+        "candidate_001",
+        "test_resume.txt"
+    )
 
-print(
-    "Number of embeddings:",
-    len(embeddings)
-)
+    final_index_size = get_index_size()
 
-print(
-    "Vector dimensions:",
-    len(embeddings[0])
-)
-
-print(
-    "Vectors in FAISS:",
-    get_index_size()
-)
-
-print(
-    "Embedding test: PASS"
-)
+    assert final_index_size == (
+        initial_index_size + len(chunks)
+    )

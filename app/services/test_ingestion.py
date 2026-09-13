@@ -1,33 +1,34 @@
+from pathlib import Path
+
 from app.services.resume_ingestion import process_resume
 from app.services.vector_store import get_index_size
 
 
-file_path = "uploads/Syed Hussain BDM.pdf"
+def test_resume_ingestion():
 
+    file_path = "uploads/Syed Hussain BDM.pdf"
 
-chunks = process_resume(
-    file_path,
-    "test_candidate_001",
-    "Syed Hussain BDM.pdf"
-)
+    assert Path(file_path).exists()
 
+    initial_index_size = get_index_size()
 
-print("\nRESUME INGESTION TEST RESULT:")
+    chunks = process_resume(
+        file_path,
+        "candidate_001",
+        "Syed Hussain BDM.pdf"
+    )
 
-print(
-    "Number of chunks:",
-    len(chunks)
-)
+    assert chunks is not None
+    assert isinstance(chunks, list)
+    assert len(chunks) > 0
 
-print("\nFirst chunk:")
+    for chunk in chunks:
+        assert isinstance(chunk, str)
+        assert chunk.strip() != ""
 
-print(chunks[0])
+    final_index_size = get_index_size()
 
-print(
-    "\nVectors in FAISS:",
-    get_index_size()
-)
-
-print(
-    "\nResume ingestion test: PASS"
-)
+    assert final_index_size > initial_index_size
+    assert final_index_size >= (
+        initial_index_size + len(chunks)
+    )
