@@ -10,6 +10,7 @@ def parse_jd(jd_text):
     }
 
     skills = [
+        # Technical skills
         "Python",
         "FastAPI",
         "RAG",
@@ -19,7 +20,20 @@ def parse_jd(jd_text):
         "SAP",
         "AWS",
         "React",
-        "SQL"
+        "SQL",
+
+        # Recruitment / Business skills
+        "Business Development Manager",
+        "IT Recruitment",
+        "Talent Acquisition",
+        "Business Development",
+        "Client Relationship Management",
+        "Lead Generation",
+        "Contract Negotiation",
+        "Team Leadership",
+        "ATS",
+        "VMS",
+        "MSP"
     ]
 
     # --------------------------------
@@ -60,7 +74,11 @@ def parse_jd(jd_text):
 
         if skill.lower() in must_have_text.lower():
 
-            pattern = rf"{re.escape(skill)}\s*(?:-|:)?\s*(\d+)\+?\s*years?"
+            pattern = (
+                rf"{re.escape(skill)}"
+                rf"\s*(?:-|:)?\s*"
+                rf"(\d+)\+?\s*years?"
+            )
 
             match = re.search(
                 pattern,
@@ -70,7 +88,9 @@ def parse_jd(jd_text):
 
             if match:
 
-                required_years = int(match.group(1))
+                required_years = int(
+                    match.group(1)
+                )
 
                 jd["must_have"][skill] = required_years
 

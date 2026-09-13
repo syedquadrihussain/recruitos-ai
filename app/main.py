@@ -7,6 +7,7 @@ from app.services.candidate_matcher import check_candidate
 from app.services.resume_parser import extract_text_from_pdf
 
 from app.routers import resumes
+from app.routers import agent
 
 
 app = FastAPI()
@@ -99,3 +100,4 @@ def create_user(user: User):
 
 
 app.include_router(resumes.router)
+app.include_router(agent.router)

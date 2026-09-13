@@ -7,7 +7,6 @@ def check_candidate(
     jd_text,
     resume_text=None
 ):
-
     jd = parse_jd(jd_text)
 
     must_have = jd["must_have"]
@@ -16,7 +15,6 @@ def check_candidate(
 
     qualified = True
     reasons = []
-
     matched_skills = []
     matched_experience = []
     must_have_results = []
@@ -24,77 +22,181 @@ def check_candidate(
     total_score = 0
     experience_closeness = []
 
-    # --------------------------------
-    # Check Must Have Skills
-    # --------------------------------
+    candidate_skills = [
+        skill.lower()
+        for skill in candidate.get("skills", [])
+    ]
+
+    # --------------------------------------------------
+    # MUST-HAVE SKILLS
+    # --------------------------------------------------
 
     for skill, required_experience in must_have.items():
 
-        candidate_experience = candidate["experience"].get(
-            skill,
-            0
+        candidate_has_skill = (
+            skill.lower() in candidate_skills
         )
 
-        if candidate_experience >= required_experience:
+        candidate_experience = candidate[
+            "experience"
+        ].get(skill)
 
-            matched_skills.append(skill)
+        # --------------------------------------------------
+        # REQUIRED EXPERIENCE IS SPECIFIED
+        # --------------------------------------------------
 
-            matched_experience.append(
-                f"{skill}: {candidate_experience} years"
-            )
+        if required_experience > 0:
 
-            must_have_results.append({
-                "skill": skill,
-                "required": required_experience,
-                "candidate": candidate_experience,
-                "status": "PASS",
-                "gap": 0
-            })
+            # Explicit experience is available.
+            # This is sufficient evidence that the
+            # candidate has the required skill/role.
 
-            total_score += skill_weights[skill]
+            if (
+                candidate_experience is not None
+                and candidate_experience >= required_experience
+            ):
 
-            experience_closeness.append(1.0)
+                matched_skills.append(skill)
 
-        else:
-
-            qualified = False
-
-            gap = required_experience - candidate_experience
-
-            reasons.append(
-                f"{skill}: Required {required_experience} years, "
-                f"candidate has {candidate_experience} years"
-            )
-
-            must_have_results.append({
-                "skill": skill,
-                "required": required_experience,
-                "candidate": candidate_experience,
-                "status": "FAIL",
-                "gap": gap
-            })
-
-            if required_experience > 0:
-
-                closeness = (
-                    candidate_experience / required_experience
+                matched_experience.append(
+                    f"{skill}: {candidate_experience} years"
                 )
 
-                experience_closeness.append(closeness)
+                must_have_results.append({
+                    "skill": skill,
+                    "required": required_experience,
+                    "candidate": candidate_experience,
+                    "status": "PASS",
+                    "gap": 0
+                })
+
+                total_score += skill_weights[skill]
+
+                experience_closeness.append(1.0)
 
             else:
 
-                experience_closeness.append(0)
+                qualified = False
 
-    # --------------------------------
-    # Nice to Have Skills
-    # --------------------------------
+                if candidate_experience is None:
+
+                    candidate_value = (
+                        "Years not explicitly available"
+                    )
+
+                    gap = None
+
+                    reasons.append(
+                        f"{skill}: Required "
+                        f"{required_experience} years, "
+                        f"candidate experience not explicitly available"
+                    )
+
+                else:
+
+                    candidate_value = candidate_experience
+
+                    gap = (
+                        required_experience
+                        - candidate_experience
+                    )
+
+                    reasons.append(
+                        f"{skill}: Required "
+                        f"{required_experience} years, "
+                        f"candidate has "
+                        f"{candidate_experience} years"
+                    )
+
+                must_have_results.append({
+                    "skill": skill,
+                    "required": required_experience,
+                    "candidate": candidate_value,
+                    "status": "FAIL",
+                    "gap": gap
+                })
+
+                if (
+                    candidate_experience is not None
+                    and required_experience > 0
+                ):
+
+                    closeness = (
+                        candidate_experience
+                        / required_experience
+                    )
+
+                    experience_closeness.append(
+                        closeness
+                    )
+
+        # --------------------------------------------------
+        # REQUIRED EXPERIENCE IS NOT SPECIFIED
+        # --------------------------------------------------
+
+        else:
+
+            if candidate_has_skill:
+
+                matched_skills.append(skill)
+
+                if candidate_experience is not None:
+
+                    matched_experience.append(
+                        f"{skill}: "
+                        f"{candidate_experience} years"
+                    )
+
+                    experience_value = (
+                        candidate_experience
+                    )
+
+                else:
+
+                    matched_experience.append(
+                        f"{skill}: "
+                        f"Years not explicitly available"
+                    )
+
+                    experience_value = (
+                        "Years not explicitly available"
+                    )
+
+                must_have_results.append({
+                    "skill": skill,
+                    "required": "Not specified",
+                    "candidate": experience_value,
+                    "status": "PASS",
+                    "gap": 0
+                })
+
+                total_score += skill_weights[skill]
+
+            else:
+
+                qualified = False
+
+                must_have_results.append({
+                    "skill": skill,
+                    "required": "Not specified",
+                    "candidate": "Skill not found",
+                    "status": "FAIL",
+                    "gap": None
+                })
+
+                reasons.append(
+                    f"{skill}: Skill not found in candidate data"
+                )
+
+    # --------------------------------------------------
+    # NICE-TO-HAVE SKILLS
+    # --------------------------------------------------
 
     nice_to_have_score = 0
 
     for skill in nice_to_have:
 
-        if skill in candidate.get("skills", []):
+        if skill.lower() in candidate_skills:
 
             nice_to_have_score += 1
 
@@ -102,11 +204,13 @@ def check_candidate(
 
             total_score += skill_weights[skill]
 
-    # --------------------------------
-    # Rule-Based Match Score
-    # --------------------------------
+    # --------------------------------------------------
+    # RULE-BASED SCORE
+    # --------------------------------------------------
 
-    max_score = sum(skill_weights.values())
+    max_score = sum(
+        skill_weights.values()
+    )
 
     if max_score > 0:
 
@@ -118,9 +222,9 @@ def check_candidate(
 
         rule_based_score = 0
 
-    # --------------------------------
-    # Experience Closeness Score
-    # --------------------------------
+    # --------------------------------------------------
+    # EXPERIENCE CLOSENESS SCORE
+    # --------------------------------------------------
 
     if experience_closeness:
 
@@ -133,9 +237,9 @@ def check_candidate(
 
         experience_closeness_score = 0
 
-    # --------------------------------
-    # Semantic Matching
-    # --------------------------------
+    # --------------------------------------------------
+    # SEMANTIC SCORE
+    # --------------------------------------------------
 
     semantic_score = 0
     semantic_matches = []
@@ -147,17 +251,17 @@ def check_candidate(
             jd_text
         )
 
-        semantic_score = semantic_result[
-            "semantic_score"
-        ]
+        semantic_score = (
+            semantic_result["semantic_score"]
+        )
 
-        semantic_matches = semantic_result[
-            "matched_chunks"
-        ]
+        semantic_matches = (
+            semantic_result["matched_chunks"]
+        )
 
-    # --------------------------------
-    # Final Combined Score
-    # --------------------------------
+    # --------------------------------------------------
+    # FINAL SCORE
+    # --------------------------------------------------
 
     final_score = (
         rule_based_score * 0.70
@@ -165,9 +269,9 @@ def check_candidate(
         semantic_score * 0.30
     )
 
-    # --------------------------------
-    # Recommendation
-    # --------------------------------
+    # --------------------------------------------------
+    # RECOMMENDATION
+    # --------------------------------------------------
 
     if qualified and final_score >= 90:
 
@@ -185,31 +289,40 @@ def check_candidate(
 
         recommendation = "Not an Exact Match"
 
-    # --------------------------------
-    # Semantic Reason
-    # --------------------------------
+    # --------------------------------------------------
+    # SEMANTIC REASON
+    # --------------------------------------------------
 
     if semantic_score >= 80:
 
         reasons.append(
-            "Resume content is highly relevant to the job description"
+            "Resume content is highly relevant "
+            "to the job description"
         )
 
     elif semantic_score >= 60:
 
         reasons.append(
-            "Resume content is moderately relevant to the job description"
+            "Resume content is moderately relevant "
+            "to the job description"
         )
 
     else:
 
         reasons.append(
-            "Resume content has limited semantic relevance to the job description"
+            "Resume content has limited semantic "
+            "relevance to the job description"
         )
+
+    # --------------------------------------------------
+    # FINAL RESULT
+    # --------------------------------------------------
 
     return {
         "name": candidate["name"],
-        "overall_experience": candidate["overall_experience"],
+        "overall_experience": candidate[
+            "overall_experience"
+        ],
         "qualified": qualified,
         "recommendation": recommendation,
         "reasons": reasons,
