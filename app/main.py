@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel
 from pathlib import Path
@@ -11,6 +13,8 @@ from app.routers import agent
 
 
 app = FastAPI()
+
+MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 
 
 @app.get("/")
@@ -56,13 +60,25 @@ async def screen_resume(
             detail="Only PDF files are supported"
         )
 
+    file_bytes = await file.read()
+
+    if len(file_bytes) > MAX_UPLOAD_SIZE_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail="File too large. Max size is 5 MB."
+        )
+
     upload_folder = Path("uploads")
     upload_folder.mkdir(exist_ok=True)
 
-    file_path = upload_folder / file.filename
+    # Use a generated filename instead of the user-supplied one,
+    # so a malicious filename (e.g. containing "../") can't write
+    # outside the uploads folder.
+    safe_filename = f"{uuid.uuid4().hex}.pdf"
+    file_path = upload_folder / safe_filename
 
     with open(file_path, "wb") as buffer:
-        buffer.write(await file.read())
+        buffer.write(file_bytes)
 
     resume_text = extract_text_from_pdf(
         str(file_path)
