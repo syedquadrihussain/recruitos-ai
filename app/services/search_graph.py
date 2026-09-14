@@ -2,7 +2,12 @@ from langgraph.graph import StateGraph, END
 
 from app.services.search_state import SearchState
 from app.services.search_planner import choose_search_strategy
-from app.services.search_observer import observe_search_results
+from app.services.llm_search_planner import (
+    choose_strategy_with_llm
+)
+from app.services.search_observer import (
+    observe_search_results
+)
 
 
 # ---------------------------------------------------------
@@ -116,20 +121,44 @@ def planner_node(
     state: SearchState
 ) -> SearchState:
 
-    strategy = choose_search_strategy(
-        state
-    )
+    try:
+
+        strategy = choose_strategy_with_llm(
+            state
+        )
+
+        print(
+            f"\nLLM Planner selected: "
+            f"{strategy.value}"
+        )
+
+    except Exception as error:
+
+        print(
+            "\nLLM Planner failed:"
+        )
+
+        print(error)
+
+        print(
+            "\nUsing deterministic "
+            "planner fallback."
+        )
+
+        strategy = choose_search_strategy(
+            state
+        )
+
+        print(
+            f"Fallback Planner selected: "
+            f"{strategy.value}"
+        )
 
     state["current_strategy"] = (
         strategy.value
     )
 
     state["attempt"] += 1
-
-    print(
-        f"\nPlanner selected: "
-        f"{strategy.value}"
-    )
 
     return state
 
