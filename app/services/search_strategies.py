@@ -1,0 +1,18 @@
+from enum import Enum
+
+
+class SearchStrategy(str, Enum):
+
+    EXACT_SKILL = "EXACT_SKILL"
+
+    RELATED_SKILL = "RELATED_SKILL"
+
+    ROLE = "ROLE"
+
+    DOMAIN = "DOMAIN"
+
+    SEMANTIC_SEARCH = "SEMANTIC_SEARCH"
+
+    HYBRID_SEARCH = "HYBRID_SEARCH"
+
+    SOURCE_SEARCH = "SOURCE_SEARCH"
