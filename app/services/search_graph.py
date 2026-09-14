@@ -1,116 +1,31 @@
 from langgraph.graph import StateGraph, END
 
 from app.services.search_state import SearchState
-from app.services.search_planner import choose_search_strategy
+
+from app.services.search_planner import (
+    choose_search_strategy
+)
+
 from app.services.llm_search_planner import (
     choose_strategy_with_llm
 )
+
 from app.services.search_observer import (
     observe_search_results
 )
 
+from app.services.recruitos_search import (
+    search_recruitos
+)
 
-# ---------------------------------------------------------
-# Controlled test data
-# ---------------------------------------------------------
+from app.services.loop_safety import (
+    should_stop_search
+)
 
-MOCK_SEARCH_RESULTS = {
-
-    "EXACT_SKILL": [
-        {
-            "name": "Ahmed",
-            "skills": [
-                "Python",
-                "RAG",
-                "FastAPI"
-            ]
-        },
-        {
-            "name": "Sara",
-            "skills": [
-                "Python",
-                "RAG"
-            ]
-        }
-    ],
-
-    "RELATED_SKILL": [
-        {
-            "name": "Sara",
-            "skills": [
-                "Python",
-                "RAG"
-            ]
-        },
-        {
-            "name": "John",
-            "skills": [
-                "Python",
-                "FastAPI"
-            ]
-        }
-    ],
-
-    "ROLE": [
-        {
-            "name": "John",
-            "skills": [
-                "Python",
-                "FastAPI"
-            ]
-        },
-        {
-            "name": "Priya",
-            "skills": [
-                "Python",
-                "RAG",
-                "FastAPI"
-            ]
-        }
-    ],
-
-    "DOMAIN": [
-        {
-            "name": "Priya",
-            "skills": [
-                "Python",
-                "RAG",
-                "FastAPI"
-            ]
-        }
-    ],
-
-    "SEMANTIC_SEARCH": [
-        {
-            "name": "David",
-            "skills": [
-                "Python",
-                "Generative AI"
-            ]
-        }
-    ],
-
-    "HYBRID_SEARCH": [
-        {
-            "name": "Michael",
-            "skills": [
-                "Python",
-                "RAG"
-            ]
-        }
-    ],
-
-    "SOURCE_SEARCH": [
-        {
-            "name": "Aisha",
-            "skills": [
-                "Python",
-                "RAG",
-                "FastAPI"
-            ]
-        }
-    ]
-}
+from app.services.jd_qualification import (
+    get_required_skill_experience,
+    qualify_candidates_with_experience
+)
 
 
 # ---------------------------------------------------------
@@ -173,9 +88,37 @@ def search_node(
 
     strategy = state["current_strategy"]
 
-    search_results = MOCK_SEARCH_RESULTS.get(
-        strategy,
-        []
+    query = state["goal"]
+
+    # -----------------------------------------------------
+    # Extract required skills AND experience
+    # from the actual Job Description
+    # -----------------------------------------------------
+
+    required_skill_experience = (
+        get_required_skill_experience(
+            state["jd_text"]
+        )
+    )
+
+    required_skills = list(
+        required_skill_experience.keys()
+    )
+
+    print(
+        f"Required skill experience from JD: "
+        f"{required_skill_experience}"
+    )
+
+    # -----------------------------------------------------
+    # Search RecruitOS
+    # -----------------------------------------------------
+
+    search_results = search_recruitos(
+        query=query,
+        strategy=strategy,
+        required_skills=required_skills,
+        top_k=5
     )
 
     print(
@@ -188,16 +131,27 @@ def search_node(
         f"{len(search_results)}"
     )
 
-    qualified_results = [
-        candidate
-        for candidate in search_results
-        if "RAG" in candidate["skills"]
-    ]
+    # -----------------------------------------------------
+    # Experience-aware JD qualification
+    # -----------------------------------------------------
 
-    state["current_query"] = (
-        f"{strategy} search for "
-        f"{state['goal']}"
+    qualified_results = (
+        qualify_candidates_with_experience(
+            search_results,
+            required_skill_experience
+        )
     )
+
+    print(
+        f"Qualified from current search: "
+        f"{len(qualified_results)}"
+    )
+
+    # -----------------------------------------------------
+    # Save current search information
+    # -----------------------------------------------------
+
+    state["current_query"] = query
 
     state["current_search_results"] = (
         search_results
@@ -226,7 +180,7 @@ def observe_node(
 
 
 # ---------------------------------------------------------
-# Endpoint Check
+# Endpoint + Safety Check
 # ---------------------------------------------------------
 
 def endpoint_check(
@@ -245,12 +199,24 @@ def endpoint_check(
         f"{target_count}"
     )
 
+    # -----------------------------------------------------
+    # Business endpoint
+    # -----------------------------------------------------
+
     if qualified_count >= target_count:
 
         print(
             "\nEndpoint reached."
             " Stopping loop."
         )
+
+        return "stop"
+
+    # -----------------------------------------------------
+    # Safety endpoint
+    # -----------------------------------------------------
+
+    if should_stop_search(state):
 
         return "stop"
 
@@ -321,11 +287,36 @@ if __name__ == "__main__":
 
     search_graph = build_search_graph()
 
+    # -----------------------------------------------------
+    # Temporary sample JD
+    # -----------------------------------------------------
+    # Later this will come from the recruiter through
+    # the FastAPI application.
+
+    jd_text = """
+
+    Job Title:
+    Python RAG Developer
+
+    Must Have:
+    Python - 5 years
+    RAG - 2 years
+    FastAPI - 2 years
+
+    Nice to Have:
+    Docker
+    AWS
+
+    """
+
     initial_state = {
 
         "goal": (
-            "Find Python RAG candidates"
+            "Find candidates for "
+            "Python RAG Developer"
         ),
+
+        "jd_text": jd_text,
 
         "target_count": 3,
 
@@ -364,6 +355,16 @@ if __name__ == "__main__":
 
     print(
         "=============================="
+    )
+
+    print(
+        "\nRequired skill experience:"
+    )
+
+    print(
+        get_required_skill_experience(
+            jd_text
+        )
     )
 
     print(
