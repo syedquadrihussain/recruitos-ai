@@ -1,13 +1,24 @@
-from app.services.candidate_store import get_candidate
-from app.services.embedding_service import create_embeddings
+from app.services.candidate_store import (
+    candidate_profiles,
+    get_candidate
+)
+
+from app.services.embedding_service import (
+    create_embeddings
+)
+
 from app.services.vector_store import (
     search_embeddings,
     load_chunks
 )
-from app.services.reranker import rerank_candidates
+
+from app.services.reranker import (
+    rerank_candidates
+)
 
 
 def _get_candidate_profiles(candidate_ids):
+
     candidates = []
 
     for candidate_id in candidate_ids:
@@ -32,6 +43,7 @@ def _get_candidate_profiles(candidate_ids):
 
 
 def _unique_candidate_ids(results):
+
     candidate_ids = []
 
     for result in results:
@@ -70,9 +82,10 @@ def _semantic_search(query, top_k=5):
     )
 
 
-def _exact_skill_search(skill):
-
-    from app.services.candidate_store import candidate_profiles
+def _skill_search(
+    skills,
+    include_all=False
+):
 
     matching_candidates = []
 
@@ -80,25 +93,158 @@ def _exact_skill_search(skill):
         candidate_profiles.items()
     ):
 
-        candidate_skills = [
-            candidate_skill.lower()
-            for candidate_skill
-            in candidate["skills"]
-        ]
+        candidate_skills = {
+            skill.lower()
+            for skill in candidate["skills"]
+        }
 
-        if skill.lower() in candidate_skills:
+        requested_skills = {
+            skill.lower()
+            for skill in skills
+        }
 
-            candidate_copy = candidate.copy()
+        if include_all:
 
-            candidate_copy["candidate_id"] = (
-                candidate_id
-            )
+            if requested_skills.issubset(
+                candidate_skills
+            ):
 
-            matching_candidates.append(
-                candidate_copy
-            )
+                candidate_copy = candidate.copy()
+
+                candidate_copy["candidate_id"] = (
+                    candidate_id
+                )
+
+                matching_candidates.append(
+                    candidate_copy
+                )
+
+        else:
+
+            if requested_skills.intersection(
+                candidate_skills
+            ):
+
+                candidate_copy = candidate.copy()
+
+                candidate_copy["candidate_id"] = (
+                    candidate_id
+                )
+
+                matching_candidates.append(
+                    candidate_copy
+                )
 
     return matching_candidates
+
+
+def _role_search(
+    query,
+    required_skills
+):
+
+    semantic_candidates = _semantic_search(
+        f"{query} developer engineer",
+        top_k=5
+    )
+
+    skill_candidates = _skill_search(
+        required_skills,
+        include_all=False
+    )
+
+    candidates = (
+        semantic_candidates
+        + skill_candidates
+    )
+
+    unique_candidates = {}
+
+    for candidate in candidates:
+
+        unique_candidates[
+            candidate["candidate_id"]
+        ] = candidate
+
+    return list(
+        unique_candidates.values()
+    )
+
+
+def _domain_search(
+    query,
+    required_skills
+):
+
+    domain_candidates = _semantic_search(
+        f"{query} technology domain",
+        top_k=5
+    )
+
+    skill_candidates = _skill_search(
+        required_skills,
+        include_all=False
+    )
+
+    candidates = (
+        domain_candidates
+        + skill_candidates
+    )
+
+    unique_candidates = {}
+
+    for candidate in candidates:
+
+        unique_candidates[
+            candidate["candidate_id"]
+        ] = candidate
+
+    return list(
+        unique_candidates.values()
+    )
+
+
+def _hybrid_search(
+    query,
+    required_skills
+):
+
+    semantic_candidates = _semantic_search(
+        query,
+        top_k=5
+    )
+
+    skill_candidates = _skill_search(
+        required_skills,
+        include_all=False
+    )
+
+    candidates = (
+        semantic_candidates
+        + skill_candidates
+    )
+
+    unique_candidates = {}
+
+    for candidate in candidates:
+
+        unique_candidates[
+            candidate["candidate_id"]
+        ] = candidate
+
+    return list(
+        unique_candidates.values()
+    )
+
+
+def _source_search(
+    query
+):
+
+    return _semantic_search(
+        f"{query} candidate resume profile",
+        top_k=5
+    )
 
 
 def search_recruitos(
@@ -118,55 +264,100 @@ def search_recruitos(
 
     strategy = strategy.upper()
 
+    # -----------------------------------------
+    # 1. EXACT SKILL SEARCH
+    # -----------------------------------------
+
     if strategy == "EXACT_SKILL":
 
         if not required_skills:
 
             return []
 
-        candidates = _exact_skill_search(
-            required_skills[0]
+        candidates = _skill_search(
+            [required_skills[0]],
+            include_all=False
         )
 
-    else:
+    # -----------------------------------------
+    # 2. RELATED SKILL SEARCH
+    # -----------------------------------------
 
-        strategy_queries = {
+    elif strategy == "RELATED_SKILL":
 
-            "RELATED_SKILL": (
-                f"{query} related technologies"
-            ),
+        candidates = _skill_search(
+            required_skills,
+            include_all=False
+        )
 
-            "ROLE": (
-                f"{query} developer engineer"
-            ),
+    # -----------------------------------------
+    # 3. ROLE SEARCH
+    # -----------------------------------------
 
-            "DOMAIN": (
-                f"{query} technology domain"
-            ),
+    elif strategy == "ROLE":
 
-            "SEMANTIC_SEARCH": (
-                f"{query}"
-            ),
+        candidates = _role_search(
+            query,
+            required_skills
+        )
 
-            "HYBRID_SEARCH": (
-                f"{query} "
-                f"{' '.join(required_skills)}"
-            ),
+    # -----------------------------------------
+    # 4. DOMAIN SEARCH
+    # -----------------------------------------
 
-            "SOURCE_SEARCH": (
-                f"{query} candidate resume"
-            )
-        }
+    elif strategy == "DOMAIN":
 
-        search_query = strategy_queries.get(
-            strategy,
+        candidates = _domain_search(
+            query,
+            required_skills
+        )
+
+    # -----------------------------------------
+    # 5. SEMANTIC SEARCH
+    # -----------------------------------------
+
+    elif strategy == "SEMANTIC_SEARCH":
+
+        candidates = _semantic_search(
+            query,
+            top_k=top_k
+        )
+
+    # -----------------------------------------
+    # 6. HYBRID SEARCH
+    # -----------------------------------------
+
+    elif strategy == "HYBRID_SEARCH":
+
+        candidates = _hybrid_search(
+            query,
+            required_skills
+        )
+
+    # -----------------------------------------
+    # 7. SOURCE SEARCH
+    # -----------------------------------------
+
+    elif strategy == "SOURCE_SEARCH":
+
+        candidates = _source_search(
             query
         )
 
+    # -----------------------------------------
+    # Unknown strategy
+    # -----------------------------------------
+
+    else:
+
         candidates = _semantic_search(
-            search_query,
+            query,
             top_k=top_k
         )
+
+    # -----------------------------------------
+    # RERANK
+    # -----------------------------------------
 
     if required_skills:
 

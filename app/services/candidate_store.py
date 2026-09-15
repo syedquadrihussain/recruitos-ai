@@ -1,7 +1,3 @@
-# --------------------------------
-# Candidate Profiles
-# --------------------------------
-
 candidate_profiles = {
 
     "candidate_001": {
@@ -51,10 +47,96 @@ candidate_profiles = {
             "SQL": 5,
             "AWS": 2
         }
+    },
+
+    "candidate_004": {
+        "name": "David",
+        "overall_experience": 8,
+        "skills": [
+            "Python",
+            "FastAPI",
+            "RAG",
+            "LangChain",
+            "Docker"
+        ],
+        "experience": {
+            "Python": 8,
+            "FastAPI": 5,
+            "RAG": 4,
+            "LangChain": 3,
+            "Docker": 4
+        }
+    },
+
+    "candidate_005": {
+        "name": "Priya",
+        "overall_experience": 7,
+        "skills": [
+            "Python",
+            "FastAPI",
+            "RAG",
+            "AWS"
+        ],
+        "experience": {
+            "Python": 7,
+            "FastAPI": 4,
+            "RAG": 3,
+            "AWS": 4
+        }
+    },
+
+    "candidate_006": {
+        "name": "Michael",
+        "overall_experience": 6,
+        "skills": [
+            "Python",
+            "Machine Learning",
+            "SQL",
+            "AWS"
+        ],
+        "experience": {
+            "Python": 6,
+            "Machine Learning": 4,
+            "SQL": 5,
+            "AWS": 3
+        }
+    },
+
+    "candidate_007": {
+        "name": "Fatima",
+        "overall_experience": 5,
+        "skills": [
+            "Python",
+            "RAG",
+            "LangChain",
+            "SQL"
+        ],
+        "experience": {
+            "Python": 5,
+            "RAG": 2,
+            "LangChain": 2,
+            "SQL": 3
+        }
+    },
+
+    "candidate_008": {
+        "name": "Robert",
+        "overall_experience": 9,
+        "skills": [
+            "Java",
+            "AWS",
+            "Docker",
+            "Kubernetes"
+        ],
+        "experience": {
+            "Java": 9,
+            "AWS": 6,
+            "Docker": 5,
+            "Kubernetes": 4
+        }
     }
 }
 
 
 def get_candidate(candidate_id):
-
     return candidate_profiles.get(candidate_id)

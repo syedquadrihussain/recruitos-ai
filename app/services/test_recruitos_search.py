@@ -114,11 +114,26 @@ def test_hybrid_search():
             ]
         )
 
-    assert len(results) == 1
+    assert isinstance(
+        results,
+        list
+    )
 
-    assert results[0]["name"] == "Ahmed"
+    assert len(results) > 0
 
-    assert results[0]["score"] == 3
+    candidate_names = [
+        candidate["name"]
+        for candidate in results
+    ]
+
+    assert "Ahmed" in candidate_names
+
+    for candidate in results:
+
+        assert "candidate_id" in candidate
+        assert "name" in candidate
+        assert "skills" in candidate
+        assert "score" in candidate
 
 
 def test_empty_query_returns_empty_results():
