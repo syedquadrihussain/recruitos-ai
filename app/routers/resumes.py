@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from pathlib import Path
 from app.services.resume_parser import extract_text_from_pdf
@@ -11,6 +13,8 @@ router = APIRouter(
 
 UPLOAD_FOLDER = Path("uploads")
 UPLOAD_FOLDER.mkdir(exist_ok=True)
+
+MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 
 
 @router.post("/upload")
@@ -27,10 +31,20 @@ async def upload_resume(file: UploadFile = File(...)):
             detail="Only PDF and DOCX files are allowed"
         )
 
-    file_path = UPLOAD_FOLDER / file.filename
+    file_bytes = await file.read()
+
+    if len(file_bytes) > MAX_UPLOAD_SIZE_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail="File too large. Max size is 5 MB."
+        )
+
+    extension = ".pdf" if file.content_type == "application/pdf" else ".docx"
+    safe_filename = f"{uuid.uuid4().hex}{extension}"
+    file_path = UPLOAD_FOLDER / safe_filename
 
     with open(file_path, "wb") as buffer:
-        buffer.write(await file.read())
+        buffer.write(file_bytes)
 
     extracted_text = ""
 

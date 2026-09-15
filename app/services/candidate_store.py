@@ -140,3 +140,29 @@ candidate_profiles = {
 
 def get_candidate(candidate_id):
     return candidate_profiles.get(candidate_id)
+
+
+def generate_candidate_id():
+    """
+    Generates the next candidate_XXX id based on how many
+    candidates already exist in the store.
+    """
+
+    next_number = len(candidate_profiles) + 1
+
+    return f"candidate_{next_number:03d}"
+
+
+def add_candidate(candidate_id, candidate_data):
+    """
+    Saves a newly extracted candidate (e.g. from an uploaded
+    resume) into the store so search/retrieval can find them.
+
+    candidate_data is expected to have the same shape produced
+    by extract_candidate(): name, overall_experience, skills,
+    experience, etc.
+    """
+
+    candidate_profiles[candidate_id] = candidate_data
+
+    return candidate_id

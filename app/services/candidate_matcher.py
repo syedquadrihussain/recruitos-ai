@@ -22,10 +22,60 @@ def check_candidate(
     total_score = 0
     experience_closeness = []
 
-    candidate_skills = [
+    # --------------------------------------------------
+    # CANDIDATE SKILLS
+    # --------------------------------------------------
+
+    candidate_skills = {
         skill.lower()
         for skill in candidate.get("skills", [])
-    ]
+    }
+
+    # --------------------------------------------------
+    # CANDIDATE ROLES
+    # --------------------------------------------------
+
+    candidate_roles = {
+        role.lower()
+        for role in candidate.get("roles", [])
+    }
+
+    # --------------------------------------------------
+    # CANDIDATE EXPERIENCE
+    # --------------------------------------------------
+
+    candidate_experience = {
+        skill.lower(): years
+        for skill, years
+        in candidate.get("experience", {}).items()
+    }
+
+    # --------------------------------------------------
+    # HELPER
+    # --------------------------------------------------
+    #
+    # A requirement can be satisfied when it exists
+    # either as a candidate skill or as a candidate role.
+    #
+    # Example:
+    #
+    # JD:
+    # Business Development Manager
+    #
+    # Candidate:
+    # roles:
+    # Business Development Manager
+    #
+    # This should count as a match even if the
+    # skills list only contains "Business Development".
+
+    def candidate_has_requirement(skill):
+        skill_lower = skill.lower()
+
+        return (
+            skill_lower in candidate_skills
+            or skill_lower in candidate_roles
+        )
 
     # --------------------------------------------------
     # MUST-HAVE SKILLS
@@ -33,39 +83,58 @@ def check_candidate(
 
     for skill, required_experience in must_have.items():
 
-        candidate_has_skill = (
-            skill.lower() in candidate_skills
+        candidate_has_skill = candidate_has_requirement(
+            skill
         )
 
-        candidate_experience = candidate[
-            "experience"
-        ].get(skill)
+        candidate_skill_experience = (
+            candidate_experience.get(
+                skill.lower()
+            )
+        )
 
         # --------------------------------------------------
-        # REQUIRED EXPERIENCE IS SPECIFIED
+        # Required experience specified
         # --------------------------------------------------
 
         if required_experience > 0:
 
-            # Explicit experience is available.
-            # This is sufficient evidence that the
-            # candidate has the required skill/role.
+            if not candidate_has_skill:
+
+                qualified = False
+
+                must_have_results.append({
+                    "skill": skill,
+                    "required": required_experience,
+                    "candidate": "Skill/role not found",
+                    "status": "FAIL",
+                    "gap": None
+                })
+
+                reasons.append(
+                    f"{skill}: Skill or relevant role "
+                    f"not found in candidate data"
+                )
+
+                continue
 
             if (
-                candidate_experience is not None
-                and candidate_experience >= required_experience
+                candidate_skill_experience is not None
+                and candidate_skill_experience
+                >= required_experience
             ):
 
                 matched_skills.append(skill)
 
                 matched_experience.append(
-                    f"{skill}: {candidate_experience} years"
+                    f"{skill}: "
+                    f"{candidate_skill_experience} years"
                 )
 
                 must_have_results.append({
                     "skill": skill,
                     "required": required_experience,
-                    "candidate": candidate_experience,
+                    "candidate": candidate_skill_experience,
                     "status": "PASS",
                     "gap": 0
                 })
@@ -78,7 +147,7 @@ def check_candidate(
 
                 qualified = False
 
-                if candidate_experience is None:
+                if candidate_skill_experience is None:
 
                     candidate_value = (
                         "Years not explicitly available"
@@ -94,18 +163,20 @@ def check_candidate(
 
                 else:
 
-                    candidate_value = candidate_experience
+                    candidate_value = (
+                        candidate_skill_experience
+                    )
 
                     gap = (
                         required_experience
-                        - candidate_experience
+                        - candidate_skill_experience
                     )
 
                     reasons.append(
                         f"{skill}: Required "
                         f"{required_experience} years, "
                         f"candidate has "
-                        f"{candidate_experience} years"
+                        f"{candidate_skill_experience} years"
                     )
 
                 must_have_results.append({
@@ -117,12 +188,12 @@ def check_candidate(
                 })
 
                 if (
-                    candidate_experience is not None
+                    candidate_skill_experience is not None
                     and required_experience > 0
                 ):
 
                     closeness = (
-                        candidate_experience
+                        candidate_skill_experience
                         / required_experience
                     )
 
@@ -131,7 +202,7 @@ def check_candidate(
                     )
 
         # --------------------------------------------------
-        # REQUIRED EXPERIENCE IS NOT SPECIFIED
+        # Required experience NOT specified
         # --------------------------------------------------
 
         else:
@@ -140,15 +211,15 @@ def check_candidate(
 
                 matched_skills.append(skill)
 
-                if candidate_experience is not None:
+                if candidate_skill_experience is not None:
 
                     matched_experience.append(
                         f"{skill}: "
-                        f"{candidate_experience} years"
+                        f"{candidate_skill_experience} years"
                     )
 
                     experience_value = (
-                        candidate_experience
+                        candidate_skill_experience
                     )
 
                 else:
@@ -179,13 +250,14 @@ def check_candidate(
                 must_have_results.append({
                     "skill": skill,
                     "required": "Not specified",
-                    "candidate": "Skill not found",
+                    "candidate": "Skill/role not found",
                     "status": "FAIL",
                     "gap": None
                 })
 
                 reasons.append(
-                    f"{skill}: Skill not found in candidate data"
+                    f"{skill}: Skill or relevant role "
+                    f"not found in candidate data"
                 )
 
     # --------------------------------------------------
@@ -196,7 +268,7 @@ def check_candidate(
 
     for skill in nice_to_have:
 
-        if skill.lower() in candidate_skills:
+        if candidate_has_requirement(skill):
 
             nice_to_have_score += 1
 
@@ -262,6 +334,9 @@ def check_candidate(
     # --------------------------------------------------
     # FINAL SCORE
     # --------------------------------------------------
+    #
+    # Semantic relevance contributes to the score,
+    # but NEVER overrides mandatory qualification.
 
     final_score = (
         rule_based_score * 0.70
@@ -280,6 +355,13 @@ def check_candidate(
     elif qualified and final_score >= 70:
 
         recommendation = "Good Match"
+
+    elif not qualified and semantic_score >= 70:
+
+        recommendation = (
+            "Potential Match - "
+            "Mandatory Requirements Not Met"
+        )
 
     elif semantic_score >= 70:
 

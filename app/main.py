@@ -7,6 +7,11 @@ from pathlib import Path
 from app.services.candidate_extractor import extract_candidate
 from app.services.candidate_matcher import check_candidate
 from app.services.resume_parser import extract_text_from_pdf
+from app.services.candidate_store import (
+    add_candidate,
+    generate_candidate_id
+)
+from app.services.resume_ingestion import process_resume
 
 from app.routers import resumes
 from app.routers import agent
@@ -100,7 +105,27 @@ async def screen_resume(
         resume_text
     )
 
+    # Persist this candidate so the search/retrieval system
+    # (recruitos_search.py) can actually find them later, instead
+    # of only ever searching the fixed sample candidates.
+    candidate_id = generate_candidate_id()
+
+    add_candidate(
+        candidate_id,
+        candidate
+    )
+
+    # Chunk + embed the resume text and store it in the vector
+    # index, so semantic/hybrid search strategies can find this
+    # candidate too, not just exact skill matches.
+    process_resume(
+        str(file_path),
+        candidate_id,
+        file.filename
+    )
+
     return {
+        "candidate_id": candidate_id,
         "filename": file.filename,
         "candidate": candidate,
         "screening_result": result

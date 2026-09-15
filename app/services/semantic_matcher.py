@@ -1,34 +1,33 @@
 import numpy as np
 
 from app.services.embedding_service import create_embeddings
+from app.services.chunker import create_chunks
 
 
 def calculate_semantic_score(
     resume_text,
     job_description,
-    chunk_size=500
+    chunk_size=500,
+    chunk_overlap=50
 ):
 
-    if not resume_text.strip():
+    if not resume_text or not resume_text.strip():
         return {
             "semantic_score": 0.0,
             "matched_chunks": []
         }
 
-    if not job_description.strip():
+    if not job_description or not job_description.strip():
         return {
             "semantic_score": 0.0,
             "matched_chunks": []
         }
 
-    resume_chunks = []
-
-    for i in range(0, len(resume_text), chunk_size):
-
-        chunk = resume_text[i:i + chunk_size].strip()
-
-        if chunk:
-            resume_chunks.append(chunk)
+    resume_chunks = create_chunks(
+        resume_text,
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap
+    )
 
     if not resume_chunks:
         return {
@@ -41,14 +40,14 @@ def calculate_semantic_score(
     embeddings = create_embeddings(texts)
 
     jd_embedding = embeddings[0]
-
     resume_embeddings = embeddings[1:]
+
+    jd_norm = np.linalg.norm(jd_embedding)
 
     similarities = []
 
     for resume_embedding in resume_embeddings:
 
-        jd_norm = np.linalg.norm(jd_embedding)
         resume_norm = np.linalg.norm(resume_embedding)
 
         if jd_norm == 0 or resume_norm == 0:
@@ -67,11 +66,6 @@ def calculate_semantic_score(
         similarities
     )[::-1][:3]
 
-    best_scores = [
-        similarities[index]
-        for index in best_indices
-    ]
-
     best_chunks = [
         {
             "chunk": resume_chunks[index],
@@ -83,7 +77,7 @@ def calculate_semantic_score(
         for index in best_indices
     ]
 
-    best_similarity = max(best_scores)
+    best_similarity = similarities[best_indices[0]]
 
     semantic_score = max(
         0,

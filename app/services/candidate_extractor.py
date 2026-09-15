@@ -18,11 +18,14 @@ def extract_candidate(text):
     # Candidate Name
     # --------------------------------------------------
 
+    # First preference:
+    # Explicit "Name:" or "Candidate Name:" label.
     name_patterns = [
         r"(?:Name|Candidate Name)\s*[:\-]\s*([A-Za-z]+(?:[ \t]+[A-Za-z]+){0,3})"
     ]
 
     for pattern in name_patterns:
+
         match = re.search(
             pattern,
             text,
@@ -30,7 +33,71 @@ def extract_candidate(text):
         )
 
         if match:
+
             candidate["name"] = match.group(1).strip()
+
+            break
+
+    # If no explicit name was found,
+    # inspect the first few lines of the resume.
+    if candidate["name"] == "Unknown":
+
+        lines = [
+            line.strip()
+            for line in text.splitlines()
+            if line.strip()
+        ]
+
+        ignored_headings = {
+            "resume",
+            "curriculum vitae",
+            "cv",
+            "profile",
+            "summary",
+            "professional summary",
+            "experience",
+            "professional experience",
+            "skills",
+            "technical skills",
+            "education",
+            "objective",
+            "career objective",
+            "contact",
+            "contact information"
+        }
+
+        for line in lines[:10]:
+
+            cleaned_line = line.strip()
+
+            # Skip lines containing contact information.
+            if (
+                "@" in cleaned_line
+                or re.search(r"\d", cleaned_line)
+            ):
+                continue
+
+            # Skip common resume headings.
+            if cleaned_line.lower() in ignored_headings:
+                continue
+
+            # Candidate names normally contain
+            # 2-5 alphabetic words.
+            name_match = re.fullmatch(
+                r"[A-Za-z]+(?:[ \t]+[A-Za-z]+){1,4}",
+                cleaned_line
+            )
+
+            if not name_match:
+                continue
+
+            words = cleaned_line.split()
+
+            # Avoid treating long sentences as names.
+            if len(words) > 5:
+                continue
+
+            candidate["name"] = cleaned_line
             break
 
     # --------------------------------------------------
@@ -63,6 +130,7 @@ def extract_candidate(text):
     for skill in skills_to_find:
 
         if skill.lower() in text_lower:
+
             candidate["skills"].append(skill)
 
     # --------------------------------------------------
@@ -83,9 +151,11 @@ def extract_candidate(text):
         )
 
         if match:
+
             candidate["overall_experience"] = int(
                 match.group(1)
             )
+
             break
 
     # --------------------------------------------------
@@ -104,6 +174,7 @@ def extract_candidate(text):
     for role in roles_to_find:
 
         if role.lower() in text_lower:
+
             candidate["roles"].append(role)
 
     # --------------------------------------------------
@@ -122,6 +193,7 @@ def extract_candidate(text):
     for company in companies_to_find:
 
         if company.lower() in text_lower:
+
             candidate["companies"].append(company)
 
     # --------------------------------------------------
