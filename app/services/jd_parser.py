@@ -18,6 +18,11 @@ def parse_jd(jd_text):
        FastAPI 3 years
        RAG: 2 years
 
+       Required Skills:
+       Python - 5 years
+       FastAPI - 2 years
+       RAG - 2 years
+
        Nice to Have:
        Docker
 
@@ -43,26 +48,50 @@ def parse_jd(jd_text):
     must_have_section = ""
     nice_to_have_section = ""
 
+    # --------------------------------
+    # 1A. Detect Must Have section
+    # --------------------------------
+
     must_have_match = re.search(
-        r"Must\s*Have\s*:?(.*?)(?="
+        r"(?:Must\s*Have|Required\s*Skills?|"
+        r"Mandatory\s*Skills?)"
+        r"\s*:?(.*?)(?="
         r"Nice\s*to\s*Have\s*:|"
         r"Nice\s*to\s*Have|"
+        r"Preferred\s*Skills?\s*:|"
+        r"Preferred\s*Skills?|"
         r"$)",
         jd_text,
         re.IGNORECASE | re.DOTALL
     )
 
+    # --------------------------------
+    # 1B. Detect Nice to Have section
+    # --------------------------------
+
     nice_to_have_match = re.search(
-        r"Nice\s*to\s*Have\s*:?(.*)$",
+        r"(?:Nice\s*to\s*Have|"
+        r"Preferred\s*Skills?)"
+        r"\s*:?(.*)$",
         jd_text,
         re.IGNORECASE | re.DOTALL
     )
 
     if must_have_match:
-        must_have_section = must_have_match.group(1).strip()
+
+        must_have_section = (
+            must_have_match
+            .group(1)
+            .strip()
+        )
 
     if nice_to_have_match:
-        nice_to_have_section = nice_to_have_match.group(1).strip()
+
+        nice_to_have_section = (
+            nice_to_have_match
+            .group(1)
+            .strip()
+        )
 
     # --------------------------------
     # 2. Known skills
@@ -101,7 +130,6 @@ def parse_jd(jd_text):
         "Docker",
         "MCP",
         "GenAI",
-        "Deep Learning",
         "SQL",
         "Java",
         "AWS",
@@ -128,6 +156,7 @@ def parse_jd(jd_text):
     # --------------------------------
 
     def skill_present(text, skill):
+
         return re.search(
             rf"\b{re.escape(skill)}\b",
             text,
@@ -226,7 +255,9 @@ def parse_jd(jd_text):
             re.IGNORECASE
         )
 
-        requirement_texts.extend(matches)
+        requirement_texts.extend(
+            matches
+        )
 
     for requirement_text in requirement_texts:
 
