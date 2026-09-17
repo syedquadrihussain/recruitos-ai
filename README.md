@@ -354,7 +354,11 @@ Candidate Ranking
 
 Built by **Syed Hussain Quadri**
 
-Feedback and suggestions are welcome through GitHub issues and discussions.
+For professional inquiries, collaboration, feedback, or opportunities:
+
+**Email:** quadrissh@gmail.com
+
+**GitHub:** https://github.com/syedquadrihussain
 
 ---
 
