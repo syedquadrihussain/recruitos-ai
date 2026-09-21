@@ -56,3 +56,17 @@ class SearchState(TypedDict):
 
     required_skills: list
     required_skill_experience: dict
+
+    # =====================================================
+    # Loop observability
+    # =====================================================
+
+    total_searches: int
+    total_duplicates: int
+    total_qualified: int
+
+    # =====================================================
+    # Loop termination information
+    # =====================================================
+
+    stop_reason: str

@@ -19,11 +19,14 @@ from app.services.recruitos_search import (
 )
 
 from app.services.loop_safety import (
-    should_stop_search
+    get_stop_reason
+)
+
+from app.services.jd_parser import (
+    get_required_skill_experience
 )
 
 from app.services.jd_qualification import (
-    get_required_skill_experience,
     qualify_candidates_with_experience
 )
 
@@ -33,16 +36,14 @@ from app.services.search_strategies import (
 
 
 # =========================================================
-# JD Preparation Node
+# Prepare Job Description
 # =========================================================
 
 def prepare_jd_node(
     state: SearchState
 ) -> SearchState:
 
-    print(
-        "\nPreparing Job Description..."
-    )
+    print("\nPreparing Job Description...")
 
     required_skill_experience = (
         get_required_skill_experience(
@@ -50,12 +51,16 @@ def prepare_jd_node(
         )
     )
 
+    required_skills = list(
+        required_skill_experience.keys()
+    )
+
     state["required_skill_experience"] = (
         required_skill_experience
     )
 
-    state["required_skills"] = list(
-        required_skill_experience.keys()
+    state["required_skills"] = (
+        required_skills
     )
 
     print(
@@ -65,14 +70,14 @@ def prepare_jd_node(
 
     print(
         "\nRequired skills:",
-        state["required_skills"]
+        required_skills
     )
 
     return state
 
 
 # =========================================================
-# Strategy Validation
+# Validate Search Strategy
 # =========================================================
 
 def validate_strategy(
@@ -80,32 +85,18 @@ def validate_strategy(
     attempted_strategies: list
 ) -> SearchStrategy:
 
-    # -----------------------------------------------------
-    # If the LLM selected an unused strategy, accept it.
-    # -----------------------------------------------------
-
     if strategy.value not in attempted_strategies:
-
         return strategy
 
-    # -----------------------------------------------------
-    # The LLM selected a strategy that was already used.
-    # RecruitOS must not blindly repeat it.
-    # -----------------------------------------------------
-
     print(
-        f"\nLLM selected an already attempted strategy:"
-        f" {strategy.value}"
+        f"\nLLM selected an already attempted "
+        f"strategy: {strategy.value}"
     )
 
     print(
-        "Validating strategy against application rules..."
+        "Validating strategy against "
+        "application rules..."
     )
-
-    # -----------------------------------------------------
-    # Find the first strategy that has not been attempted.
-    # The order comes from the SearchStrategy enum.
-    # -----------------------------------------------------
 
     for available_strategy in SearchStrategy:
 
@@ -115,20 +106,15 @@ def validate_strategy(
         ):
 
             print(
-                f"Using unused strategy instead:"
-                f" {available_strategy.value}"
+                "Using unused strategy instead:",
+                available_strategy.value
             )
 
             return available_strategy
 
-    # -----------------------------------------------------
-    # Normally this will not be reached because the loop
-    # safety limit is lower than the total number of
-    # available strategies.
-    # -----------------------------------------------------
-
     print(
-        "\nAll search strategies have been attempted."
+        "\nAll search strategies "
+        "have been attempted."
     )
 
     print(
@@ -146,78 +132,59 @@ def planner_node(
     state: SearchState
 ) -> SearchState:
 
-    if "attempted_strategies" not in state:
-
-        state["attempted_strategies"] = []
-
     attempted_strategies = (
-        state["attempted_strategies"]
+        state.get(
+            "attempted_strategies",
+            []
+        )
     )
-
-    # -----------------------------------------------------
-    # First ask the LLM for the next strategy.
-    # -----------------------------------------------------
 
     try:
 
-        strategy = choose_strategy_with_llm(
-            state
+        strategy = (
+            choose_strategy_with_llm(
+                state
+            )
         )
 
         print(
-            f"\nLLM Planner suggested:"
-            f" {strategy.value}"
+            f"\nLLM Planner suggested: "
+            f"{strategy.value}"
         )
 
     except Exception as error:
 
         print(
-            "\nLLM Planner failed:"
-        )
-
-        print(error)
-
-        print(
-            "\nUsing deterministic planner fallback."
-        )
-
-        strategy = choose_search_strategy(
-            state
+            "\nLLM Planner failed."
         )
 
         print(
-            f"Fallback Planner selected:"
-            f" {strategy.value}"
+            f"Reason: {error}"
         )
 
-    # -----------------------------------------------------
-    # Application-level validation.
-    #
-    # The LLM can suggest a strategy, but RecruitOS
-    # controls whether that strategy is allowed.
-    # -----------------------------------------------------
+        print(
+            "Using deterministic planner fallback."
+        )
+
+        strategy = (
+            choose_search_strategy(
+                state
+            )
+        )
+
+        print(
+            f"Fallback strategy: "
+            f"{strategy.value}"
+        )
 
     strategy = validate_strategy(
         strategy,
         attempted_strategies
     )
 
-    print(
-        f"\nFinal strategy selected by RecruitOS:"
-        f" {strategy.value}"
-    )
-
-    # -----------------------------------------------------
-    # Store the validated strategy.
-    # -----------------------------------------------------
-
     state["current_strategy"] = (
         strategy.value
     )
-
-    # -----------------------------------------------------
-    # Record the strategy as attempted.
-    # -----------------------------------------------------
 
     if (
         strategy.value
@@ -228,15 +195,16 @@ def planner_node(
             strategy.value
         )
 
-    # -----------------------------------------------------
-    # Increase search attempt count.
-    # -----------------------------------------------------
-
     state["attempt"] += 1
 
     print(
-        f"Search attempt number:"
-        f" {state['attempt']}"
+        f"\nFinal strategy selected by RecruitOS: "
+        f"{strategy.value}"
+    )
+
+    print(
+        f"Search attempt number: "
+        f"{state['attempt']}"
     )
 
     return state
@@ -251,27 +219,23 @@ def search_node(
 ) -> SearchState:
 
     print(
-        f"\nSearch strategy:"
-        f" {state['current_strategy']}"
+        f"\nSearch strategy: "
+        f"{state['current_strategy']}"
     )
 
-    candidates = search_recruitos(
+    search_results = search_recruitos(
         query=state["current_query"],
         strategy=state["current_strategy"],
-        required_skills=state.get(
-            "required_skills",
-            []
-        ),
-        top_k=5
-    )
-
-    print(
-        f"Candidates found:"
-        f" {len(candidates)}"
+        required_skills=state["required_skills"]
     )
 
     state["current_search_results"] = (
-        candidates
+        search_results
+    )
+
+    print(
+        f"Candidates found: "
+        f"{len(search_results)}"
     )
 
     return state
@@ -285,32 +249,25 @@ def qualification_node(
     state: SearchState
 ) -> SearchState:
 
-    required_skill_experience = (
-        state.get(
-            "required_skill_experience",
-            {}
+    qualified_results = (
+        qualify_candidates_with_experience(
+            state["current_search_results"],
+            state["required_skill_experience"]
         )
+    )
+
+    state["current_qualified_results"] = (
+        qualified_results
     )
 
     print(
         "\nRequired skill experience:",
-        required_skill_experience
-    )
-
-    qualified_candidates = (
-        qualify_candidates_with_experience(
-            state["current_search_results"],
-            required_skill_experience
-        )
+        state["required_skill_experience"]
     )
 
     print(
-        f"Qualified from current search:"
-        f" {len(qualified_candidates)}"
-    )
-
-    state["current_qualified_results"] = (
-        qualified_candidates
+        f"Qualified from current search: "
+        f"{len(qualified_results)}"
     )
 
     return state
@@ -331,10 +288,43 @@ def observer_node(
     )
 
     print(
-        f"Qualified candidates:"
-        f" {len(state['qualified_candidates'])}/"
-        f"{state['target_count']}"
+        f"\nQualified candidates: "
+        f"{len(state['qualified_candidates'])}"
+        f"/{state['target_count']}"
     )
+
+    # -----------------------------------------------------
+    # Target reached
+    # -----------------------------------------------------
+
+    if (
+        len(state["qualified_candidates"])
+        >= state["target_count"]
+    ):
+
+        state["stop_reason"] = (
+            "TARGET_REACHED"
+        )
+
+        print(
+            "\nTarget candidate count achieved."
+        )
+
+        return state
+
+    # -----------------------------------------------------
+    # Check loop safety
+    # -----------------------------------------------------
+
+    stop_reason = get_stop_reason(
+        state
+    )
+
+    if stop_reason:
+
+        state["stop_reason"] = (
+            stop_reason
+        )
 
     return state
 
@@ -348,30 +338,66 @@ def endpoint_check(
 ) -> str:
 
     # -----------------------------------------------------
-    # Business endpoint
+    # Stop condition already determined
+    # by the Observer node.
     # -----------------------------------------------------
 
-    if (
-        len(state["qualified_candidates"])
-        >= state["target_count"]
-    ):
+    if state.get("stop_reason"):
 
-        print(
-            "\nEndpoint reached."
-            " Target candidate count achieved."
-        )
+        stop_reason = state[
+            "stop_reason"
+        ]
 
-        print(
-            "Stopping loop."
-        )
+        if stop_reason == "TARGET_REACHED":
 
-        return "stop"
+            print(
+                "\nEndpoint reached. "
+                "Target candidate count achieved."
+            )
 
-    # -----------------------------------------------------
-    # Safety endpoints
-    # -----------------------------------------------------
+            print(
+                "Stopping loop."
+            )
 
-    if should_stop_search(state):
+        elif stop_reason == "MAX_ATTEMPTS":
+
+            print(
+                "\nMaximum search attempts reached."
+            )
+
+            print(
+                "Stopping loop safely."
+            )
+
+        elif stop_reason == "NO_PROGRESS":
+
+            print(
+                "\nRepeated no-progress detected."
+            )
+
+            print(
+                "The search is not discovering "
+                "new qualified candidates."
+            )
+
+            print(
+                "Stopping loop safely."
+            )
+
+        elif stop_reason == "DUPLICATE_RESULTS":
+
+            print(
+                "\nNo search progress detected."
+            )
+
+            print(
+                "All returned candidates "
+                "were already discovered."
+            )
+
+            print(
+                "Stopping loop safely."
+            )
 
         print(
             "\nSafety endpoint reached."
@@ -380,7 +406,7 @@ def endpoint_check(
         return "stop"
 
     # -----------------------------------------------------
-    # Continue the Agent Loop
+    # Continue search
     # -----------------------------------------------------
 
     print(
@@ -466,7 +492,7 @@ def build_search_graph():
 
 
 # =========================================================
-# Main Test
+# Run RecruitOS Search Graph
 # =========================================================
 
 if __name__ == "__main__":
@@ -475,21 +501,20 @@ if __name__ == "__main__":
 
     initial_state = {
 
-        "goal": (
-            "Find qualified Python "
-            "FastAPI RAG developers"
-        ),
+        "goal":
+            "Find qualified Python FastAPI RAG developers",
 
-        "jd_text": """
-        We are looking for a Python FastAPI
-        RAG Developer.
+        "jd_text":
+            """
+            We are looking for a Python FastAPI
+            RAG Developer.
 
-        Required skills:
+            Required skills:
 
-        Python - 5 years
-        FastAPI - 2 years
-        RAG - 2 years
-        """,
+            Python - 5 years
+            FastAPI - 2 years
+            RAG - 2 years
+            """,
 
         "target_count": 5,
 
@@ -503,9 +528,8 @@ if __name__ == "__main__":
 
         "attempted_strategies": [],
 
-        "current_query": (
-            "Python FastAPI RAG Developer"
-        ),
+        "current_query":
+            "Python FastAPI RAG Developer",
 
         "last_search_candidates": 0,
 
@@ -521,11 +545,21 @@ if __name__ == "__main__":
 
         "required_skills": [],
 
-        "required_skill_experience": {}
+        "required_skill_experience": {},
+
+        "total_searches": 0,
+
+        "total_duplicates": 0,
+
+        "total_qualified": 0,
+
+        "stop_reason": ""
     }
 
-    final_state = search_graph.invoke(
-        initial_state
+    final_state = (
+        search_graph.invoke(
+            initial_state
+        )
     )
 
     print(
@@ -556,7 +590,9 @@ if __name__ == "__main__":
     )
 
     for candidate in (
-        final_state["qualified_candidates"]
+        final_state[
+            "qualified_candidates"
+        ]
     ):
 
         print(
@@ -576,5 +612,41 @@ if __name__ == "__main__":
         final_state.get(
             "attempted_strategies",
             []
+        )
+    )
+
+    print(
+        "\nLoop metrics:"
+    )
+
+    print(
+        "Total searches:",
+        final_state.get(
+            "total_searches",
+            0
+        )
+    )
+
+    print(
+        "Total duplicates:",
+        final_state.get(
+            "total_duplicates",
+            0
+        )
+    )
+
+    print(
+        "Total qualified:",
+        final_state.get(
+            "total_qualified",
+            0
+        )
+    )
+
+    print(
+        "Stop reason:",
+        final_state.get(
+            "stop_reason",
+            ""
         )
     )

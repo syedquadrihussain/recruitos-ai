@@ -52,7 +52,7 @@ The system can:
                     Job Description
                            │
                            ▼
-                      JD Parsing
+                       JD Parsing
                            │
                            │
                            │
@@ -62,16 +62,16 @@ Resume ──► Text Extraction ──► Chunking
                        Embeddings
                            │
                            ▼
-                     FAISS Vector Store
+                    FAISS Vector Store
                            │
                            ▼
-                  Candidate Retrieval
+                   Candidate Retrieval
                            │
                            ▼
-                       Reranker
+                        Reranker
                            │
                            ▼
-                  Candidate Screening
+                   Candidate Screening
                   ┌────────┴─────────┐
                   │                  │
              Must-Have Skills   Experience
@@ -81,10 +81,10 @@ Resume ──► Text Extraction ──► Chunking
                      Match Scoring
                            │
                            ▼
-                  Candidate Ranking
+                   Candidate Ranking
                            │
                            ▼
-                 Closest Candidates
+                  Closest Candidates
 ```
 
 ---
@@ -95,17 +95,29 @@ RecruitOS AI combines multiple signals when evaluating candidates.
 
 ```text
 Semantic Relevance
+
         +
+
 Required Skills
+
         +
+
 Required Experience
+
         +
+
 Nice-to-Have Skills
+
         ↓
+
 Candidate Screening
+
         ↓
+
 Match Scoring
+
         ↓
+
 Candidate Ranking
 ```
 
@@ -121,11 +133,15 @@ Consider a job description requiring:
 
 ```text
 Must Have:
+
 Python - 5 years
+
 FastAPI - 3 years
 
 Nice to Have:
+
 RAG
+
 Docker
 ```
 
@@ -138,19 +154,19 @@ Candidates are evaluated using:
                  Semantic Relevance
                            │
                            ▼
-                    Required Skills
+                     Required Skills
                            │
                            ▼
-                 Required Experience
+                  Required Experience
                            │
                            ▼
-                 Nice-to-Have Skills
+                  Nice-to-Have Skills
                            │
                            ▼
-                    Match Scoring
+                     Match Scoring
                            │
                            ▼
-                  Candidate Ranking
+                   Candidate Ranking
 ```
 
 The system can also use **experience closeness** to rank candidates when no candidate completely satisfies all must-have requirements.
@@ -194,6 +210,7 @@ Newer AI techniques will be adopted only when they provide a meaningful and stab
 
 ```text
 recruitos-ai/
+
 │
 ├── app/
 │   ├── main.py
@@ -217,6 +234,7 @@ recruitos-ai/
 
 ```bash
 git clone https://github.com/syedquadrihussain/recruitos-ai.git
+
 cd recruitos-ai
 ```
 
@@ -266,15 +284,25 @@ The project is developed incrementally using:
 
 ```text
 Build
+
   ↓
+
 Test
+
   ↓
+
 Evaluate
+
   ↓
+
 Improve
+
   ↓
+
 Document
+
   ↓
+
 Deploy
 ```
 
@@ -307,9 +335,15 @@ Each technology should have a clear purpose within the recruitment workflow.
 * Complete FastAPI screening workflow
 * Improved reranking
 * LLM-based candidate explanations
+* Agentic search workflow
+* Search loop safety and duplicate detection
 
 ### Next Up
 
+* Boolean search
+* Visa filtering
+* Location filtering
+* Supervisor / multi-agent architecture
 * Evaluation framework for candidate ranking quality
 * Recruitment chatbot with memory
 * Live deployment
@@ -318,11 +352,13 @@ Each technology should have a clear purpose within the recruitment workflow.
 
 Longer-term capabilities may include:
 
-* Agentic recruitment workflows
+* MCP-based enterprise integrations
+* ATS/VMS integrations
+* Human-in-the-loop recruitment workflows
 * Role-based access control (RBAC)
 * Multimodal candidate screening
-* Multi-agent architecture
 * Additional recruitment workflow automation
+* Fine-tuning where evaluation demonstrates a genuine need
 
 These capabilities will be introduced as they move from concept into active development and provide genuine value to the system.
 
@@ -338,14 +374,26 @@ The current focus is on building a reliable foundation for:
 
 ```text
 Resume Processing
+
        ↓
+
 Semantic Retrieval
+
        ↓
+
 Candidate Screening
+
        ↓
+
 Candidate Scoring
+
        ↓
+
 Candidate Ranking
+
+       ↓
+
+Agentic Search
 ```
 
 ---
@@ -356,7 +404,7 @@ Built by **Syed Hussain Quadri**
 
 For professional inquiries, collaboration, feedback, or opportunities:
 
-**Email:** quadrissh@gmail.com
+**Email:** [quadrissh@gmail.com](mailto:quadrissh@gmail.com)
 
 **GitHub:** https://github.com/syedquadrihussain
 
@@ -364,4 +412,12 @@ For professional inquiries, collaboration, feedback, or opportunities:
 
 ## License
 
-MIT License — see [`LICENSE`](LICENSE) for details.
+RecruitOS AI is proprietary software.
+
+The source code is publicly available for viewing and evaluation purposes.
+
+No permission is granted to copy, modify, distribute, sublicense, publish, or commercially use this software without prior written permission from the copyright holder.
+
+For licensing or commercial use inquiries:
+
+**Email:** [quadrissh@gmail.com](mailto:quadrissh@gmail.com)

@@ -7,6 +7,10 @@ def observe_search_results(
     qualified_results: list
 ) -> SearchState:
 
+    # =====================================================
+    # Existing candidates
+    # =====================================================
+
     existing_candidates = {
         candidate["name"]
         for candidate in state["candidates"]
@@ -17,14 +21,19 @@ def observe_search_results(
         for candidate in state["qualified_candidates"]
     }
 
+    # =====================================================
+    # Prepare new results
+    # =====================================================
+
     new_candidates = []
+
     new_qualified_candidates = []
 
     duplicate_count = 0
 
-    # ---------------------------------------------------------
+    # =====================================================
     # Observe search results
-    # ---------------------------------------------------------
+    # =====================================================
 
     for candidate in search_results:
 
@@ -36,31 +45,38 @@ def observe_search_results(
 
         else:
 
-            new_candidates.append(candidate)
+            new_candidates.append(
+                candidate
+            )
 
             existing_candidates.add(
                 candidate_name
             )
 
-    # ---------------------------------------------------------
+    # =====================================================
     # Observe qualified results
-    # ---------------------------------------------------------
+    # =====================================================
 
     for candidate in qualified_results:
 
         candidate_name = candidate["name"]
 
-        if candidate_name not in existing_qualified_candidates:
+        if (
+            candidate_name
+            not in existing_qualified_candidates
+        ):
 
-            new_qualified_candidates.append(candidate)
+            new_qualified_candidates.append(
+                candidate
+            )
 
             existing_qualified_candidates.add(
                 candidate_name
             )
 
-    # ---------------------------------------------------------
+    # =====================================================
     # Update accumulated candidates
-    # ---------------------------------------------------------
+    # =====================================================
 
     state["candidates"] = (
         state["candidates"]
@@ -72,9 +88,9 @@ def observe_search_results(
         + new_qualified_candidates
     )
 
-    # ---------------------------------------------------------
-    # Save current search metrics
-    # ---------------------------------------------------------
+    # =====================================================
+    # Current search metrics
+    # =====================================================
 
     state["last_search_candidates"] = (
         len(search_results)
@@ -88,9 +104,23 @@ def observe_search_results(
         duplicate_count
     )
 
-    # ---------------------------------------------------------
+    # =====================================================
+    # Cumulative loop metrics
+    # =====================================================
+
+    state["total_searches"] += 1
+
+    state["total_duplicates"] += (
+        duplicate_count
+    )
+
+    state["total_qualified"] = (
+        len(state["qualified_candidates"])
+    )
+
+    # =====================================================
     # Progress tracking
-    # ---------------------------------------------------------
+    # =====================================================
 
     new_qualified_count = (
         len(new_qualified_candidates)
@@ -102,8 +132,8 @@ def observe_search_results(
 
         print(
             f"\nProgress detected:"
-            f" {new_qualified_count} "
-            f"new qualified candidate(s)."
+            f" {new_qualified_count}"
+            f" new qualified candidate(s)."
         )
 
     else:
@@ -111,12 +141,40 @@ def observe_search_results(
         state["no_progress_count"] += 1
 
         print(
-            f"\nNo new qualified candidates."
+            "\nNo new qualified candidates."
         )
 
         print(
-            f"Consecutive no-progress count: "
-            f"{state['no_progress_count']}"
+            "Consecutive no-progress count:"
+            f" {state['no_progress_count']}"
         )
+
+    # =====================================================
+    # Loop metrics output
+    # =====================================================
+
+    print(
+        "\nLoop metrics:"
+    )
+
+    print(
+        f"Searches performed:"
+        f" {state['total_searches']}"
+    )
+
+    print(
+        f"Total candidates discovered:"
+        f" {len(state['candidates'])}"
+    )
+
+    print(
+        f"Total duplicates:"
+        f" {state['total_duplicates']}"
+    )
+
+    print(
+        f"Total qualified:"
+        f" {state['total_qualified']}"
+    )
 
     return state

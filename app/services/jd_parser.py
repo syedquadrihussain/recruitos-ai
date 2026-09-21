@@ -472,3 +472,23 @@ def parse_jd(jd_text):
     # --------------------------------
 
     return jd
+def get_required_skill_experience(jd_text):
+    """
+    Return required skills and their minimum experience
+    from the parsed job description.
+
+    Example:
+    {
+        "Python": 5,
+        "FastAPI": 2,
+        "RAG": 2
+    }
+    """
+
+    parsed_jd = parse_jd(jd_text)
+
+    return {
+        skill: experience
+        for skill, experience
+        in parsed_jd["must_have"].items()
+    }
