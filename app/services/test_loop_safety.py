@@ -20,6 +20,8 @@ def create_state():
 
         "current_strategy": "ROLE",
 
+        "attempted_strategies": [],
+
         "current_query": "",
 
         "last_search_candidates": 1,
@@ -28,9 +30,23 @@ def create_state():
 
         "last_search_duplicates": 0,
 
+        "no_progress_count": 0,
+
         "current_search_results": [],
 
-        "current_qualified_results": []
+        "current_qualified_results": [],
+
+        "required_skills": [],
+
+        "required_skill_experience": {},
+
+        "total_searches": 0,
+
+        "total_duplicates": 0,
+
+        "total_qualified": 0,
+
+        "stop_reason": ""
     }
 
 

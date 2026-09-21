@@ -16,10 +16,20 @@ def test_observer_tracks_new_candidates_and_duplicates():
         "qualified_candidates": [],
         "attempt": 1,
         "current_strategy": "EXACT_SKILL",
+        "attempted_strategies": [],
         "current_query": "Python RAG",
         "last_search_candidates": 0,
         "last_search_qualified": 0,
-        "last_search_duplicates": 0
+        "last_search_duplicates": 0,
+        "no_progress_count": 0,
+        "current_search_results": [],
+        "current_qualified_results": [],
+        "required_skills": [],
+        "required_skill_experience": {},
+        "total_searches": 0,
+        "total_duplicates": 0,
+        "total_qualified": 0,
+        "stop_reason": ""
     }
 
     search_results = [
@@ -69,6 +79,11 @@ def test_observer_tracks_new_candidates_and_duplicates():
         == 1
     )
 
+    assert (
+        updated_state["total_searches"]
+        == 1
+    )
+
 
 def test_observer_does_not_duplicate_qualified_candidates():
 
@@ -87,10 +102,20 @@ def test_observer_does_not_duplicate_qualified_candidates():
         ],
         "attempt": 1,
         "current_strategy": "EXACT_SKILL",
+        "attempted_strategies": [],
         "current_query": "Python RAG",
         "last_search_candidates": 0,
         "last_search_qualified": 0,
-        "last_search_duplicates": 0
+        "last_search_duplicates": 0,
+        "no_progress_count": 0,
+        "current_search_results": [],
+        "current_qualified_results": [],
+        "required_skills": [],
+        "required_skill_experience": {},
+        "total_searches": 0,
+        "total_duplicates": 0,
+        "total_qualified": 1,
+        "stop_reason": ""
     }
 
     search_results = [
@@ -114,3 +139,8 @@ def test_observer_does_not_duplicate_qualified_candidates():
     assert len(
         updated_state["qualified_candidates"]
     ) == 1
+
+    assert (
+        updated_state["total_searches"]
+        == 1
+    )

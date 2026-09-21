@@ -23,7 +23,7 @@ client = Groq(
 
 
 # =========================================================
-# Allowed Strategies
+# Allowed Search Strategies
 # =========================================================
 
 ALLOWED_STRATEGIES = [
@@ -33,7 +33,7 @@ ALLOWED_STRATEGIES = [
 
 
 # =========================================================
-# LLM System Prompt
+# Supervisor / Planner Instructions
 # =========================================================
 
 SYSTEM_PROMPT = """
@@ -91,7 +91,7 @@ Rules:
 
 
 # =========================================================
-# LLM Strategy Planner
+# LLM Search Planner
 # =========================================================
 
 def choose_strategy_with_llm(
@@ -105,6 +105,44 @@ def choose_strategy_with_llm(
     attempted_strategies = state.get(
         "attempted_strategies",
         []
+    )
+
+    # -----------------------------------------------------
+    # Read loop progress safely
+    # -----------------------------------------------------
+
+    no_progress_count = state.get(
+        "no_progress_count",
+        0
+    )
+
+    # -----------------------------------------------------
+    # Read search metrics safely
+    # -----------------------------------------------------
+
+    last_search_candidates = state.get(
+        "last_search_candidates",
+        0
+    )
+
+    last_search_qualified = state.get(
+        "last_search_qualified",
+        0
+    )
+
+    last_search_duplicates = state.get(
+        "last_search_duplicates",
+        0
+    )
+
+    current_strategy = state.get(
+        "current_strategy",
+        ""
+    )
+
+    current_query = state.get(
+        "current_query",
+        ""
     )
 
     # -----------------------------------------------------
@@ -125,25 +163,25 @@ Total candidates found so far:
 {len(state["candidates"])}
 
 Current strategy:
-{state["current_strategy"]}
+{current_strategy}
 
 Strategies already attempted:
 {attempted_strategies}
 
 Last search candidates:
-{state["last_search_candidates"]}
+{last_search_candidates}
 
 Last search qualified:
-{state["last_search_qualified"]}
+{last_search_qualified}
 
 Last search duplicates:
-{state["last_search_duplicates"]}
+{last_search_duplicates}
 
 Consecutive searches with no new qualified candidates:
-{state["no_progress_count"]}
+{no_progress_count}
 
 Previous search query:
-{state["current_query"]}
+{current_query}
 
 Based on the complete search state,
 choose the NEXT search strategy.
@@ -157,31 +195,26 @@ Return ONLY one allowed strategy name.
 """
 
     # -----------------------------------------------------
-    # Call LLM
+    # Call Groq LLM
     # -----------------------------------------------------
 
     response = client.chat.completions.create(
-
         model="openai/gpt-oss-20b",
-
         messages=[
-
             {
                 "role": "system",
                 "content": SYSTEM_PROMPT
             },
-
             {
                 "role": "user",
                 "content": user_prompt
             }
         ],
-
         temperature=0
     )
 
     # -----------------------------------------------------
-    # Extract response
+    # Read LLM response
     # -----------------------------------------------------
 
     raw_strategy = (
@@ -205,7 +238,7 @@ Return ONLY one allowed strategy name.
         )
 
     # -----------------------------------------------------
-    # Return SearchStrategy
+    # Return enum
     # -----------------------------------------------------
 
     return SearchStrategy(
