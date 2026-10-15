@@ -46,6 +46,7 @@ class MultiAgentState(TypedDict):
     candidates: list
     screened_candidates: list
     matched_candidates: list
+    shortlisted_candidates: list
 
     # -----------------------------------------------------
     # WORKFLOW CONTROL

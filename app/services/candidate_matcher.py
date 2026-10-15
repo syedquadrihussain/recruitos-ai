@@ -331,6 +331,7 @@ def check_candidate(
             semantic_result["matched_chunks"]
         )
 
+
     # --------------------------------------------------
     # FINAL SCORE
     # --------------------------------------------------
@@ -338,11 +339,16 @@ def check_candidate(
     # Semantic relevance contributes to the score,
     # but NEVER overrides mandatory qualification.
 
-    final_score = (
-        rule_based_score * 0.70
-    ) + (
-        semantic_score * 0.30
-    )
+    if resume_text and resume_text.strip():
+        final_score = (
+            rule_based_score * 0.70
+            + semantic_score * 0.30
+        )
+    else:
+        final_score = rule_based_score
+
+
+
 
     # --------------------------------------------------
     # RECOMMENDATION

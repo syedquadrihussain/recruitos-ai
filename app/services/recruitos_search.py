@@ -58,6 +58,54 @@ def _unique_candidate_ids(results):
 
     return candidate_ids
 
+def _attach_resume_evidence(candidates):
+    """
+    Attach stored resume chunks to candidate copies.
+    Original candidate profiles remain unchanged.
+    """
+
+    if not candidates:
+        return candidates
+
+    chunks = load_chunks()
+
+    if not chunks:
+        return candidates
+
+    chunks_by_candidate = {}
+
+    for item in chunks:
+        candidate_id = item.get("candidate_id")
+        chunk_text = item.get("chunk", "")
+
+        if not candidate_id or not chunk_text:
+            continue
+
+        chunks_by_candidate.setdefault(
+            candidate_id, []
+        ).append(chunk_text)
+
+    enriched_candidates = []
+
+    for candidate in candidates:
+        candidate_copy = candidate.copy()
+
+        candidate_id = candidate_copy.get(
+            "candidate_id"
+        )
+
+        resume_chunks = chunks_by_candidate.get(
+            candidate_id, []
+        )
+
+        if resume_chunks:
+            candidate_copy["resume_text"] = (
+                "\n".join(resume_chunks)[:20000]
+            )
+
+        enriched_candidates.append(candidate_copy)
+
+    return enriched_candidates
 
 def _semantic_search(query, top_k=5):
 
@@ -359,6 +407,7 @@ def search_recruitos(
     # RERANK
     # -----------------------------------------
 
+
     if required_skills:
 
         candidates = rerank_candidates(
@@ -370,5 +419,9 @@ def search_recruitos(
             key=lambda candidate: candidate["score"],
             reverse=True
         )
+
+    candidates = _attach_resume_evidence(
+        candidates
+    )
 
     return candidates

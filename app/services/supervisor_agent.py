@@ -81,7 +81,6 @@ def choose_next_agent(
     # -----------------------------------------------------
 
     if state.get("workflow_complete", False):
-
         return "END"
 
     # -----------------------------------------------------
@@ -93,17 +92,15 @@ def choose_next_agent(
         0
     )
 
-    matched_candidates = state.get(
-        "matched_candidates",
+    shortlisted_candidates = state.get(
+        "shortlisted_candidates",
         []
     )
 
     if (
         target_count > 0
-        and len(matched_candidates)
-        >= target_count
+        and len(shortlisted_candidates) >= target_count
     ):
-
         return "END"
 
     # -----------------------------------------------------
@@ -116,7 +113,6 @@ def choose_next_agent(
     )
 
     if not candidates:
-
         return "SEARCH"
 
     # -----------------------------------------------------
@@ -129,15 +125,18 @@ def choose_next_agent(
     )
 
     if not screened_candidates:
-
         return "SCREENING"
 
     # -----------------------------------------------------
     # Candidates have been screened but not matched
     # -----------------------------------------------------
 
-    if not matched_candidates:
+    matched_candidates = state.get(
+        "matched_candidates",
+        []
+    )
 
+    if not matched_candidates:
         return "MATCHING"
 
     # -----------------------------------------------------
@@ -205,6 +204,16 @@ def supervisor_node(
         len(
             state.get(
                 "matched_candidates",
+                []
+            )
+        )
+    )
+
+    print(
+        "Shortlisted candidates:",
+        len(
+            state.get(
+                "shortlisted_candidates",
                 []
             )
         )
