@@ -12,6 +12,7 @@ from app.services.candidate_store import (
     generate_candidate_id
 )
 from app.services.resume_ingestion import process_resume
+from app.services.vector_store import load_chunks
 
 from app.routers import resumes
 from app.routers import agent
@@ -56,7 +57,8 @@ def screen_candidate(request: ScreeningRequest):
 @app.post("/screen-resume")
 async def screen_resume(
     file: UploadFile = File(...),
-    job_description: str = Form(...)
+    job_description: str = Form(...),
+    resume_id: str | None = Form(default=None)
 ):
 
     if file.content_type != "application/pdf":
@@ -105,27 +107,42 @@ async def screen_resume(
         resume_text
     )
 
-    # Persist this candidate so the search/retrieval system
-    # (recruitos_search.py) can actually find them later, instead
-    # of only ever searching the fixed sample candidates.
-    candidate_id = generate_candidate_id()
+    # Reuse the existing resume identity only when explicitly supplied.
+    # New uploads receive a resume_id so they can be updated later.
+    effective_resume_id = resume_id or uuid.uuid4().hex
+
+    existing_records = [
+        record for record in load_chunks()
+        if record.get("resume_id") == effective_resume_id
+    ]
+
+    if existing_records:
+        candidate_id = existing_records[0].get("candidate_id")
+        if not candidate_id:
+            raise HTTPException(
+                status_code=409,
+                detail="Existing resume has no candidate ID; update cannot proceed safely."
+            )
+    else:
+        candidate_id = generate_candidate_id()
+
+    # Store the resume before publishing its candidate profile.
+    # If ingestion fails, avoid leaving a profile without resume data.
+    process_resume(
+        str(file_path),
+        candidate_id,
+        file.filename,
+        resume_id=effective_resume_id
+    )
 
     add_candidate(
         candidate_id,
         candidate
     )
 
-    # Chunk + embed the resume text and store it in the vector
-    # index, so semantic/hybrid search strategies can find this
-    # candidate too, not just exact skill matches.
-    process_resume(
-        str(file_path),
-        candidate_id,
-        file.filename
-    )
-
     return {
         "candidate_id": candidate_id,
+        "resume_id": effective_resume_id,
         "filename": file.filename,
         "candidate": candidate,
         "screening_result": result

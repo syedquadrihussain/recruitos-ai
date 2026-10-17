@@ -91,6 +91,55 @@ Rules:
 
 
 # =========================================================
+# Deterministic Fallback Strategy
+# =========================================================
+
+def _fallback_strategy(state: SearchState) -> SearchStrategy:
+    """Return a valid strategy if the LLM response is unusable."""
+
+    qualified_count = len(state.get("qualified_candidates", []))
+    target_count = state.get("target_count", 0)
+
+    if target_count > 0 and qualified_count >= target_count:
+        return SearchStrategy.EXACT_SKILL
+
+    attempted = {
+        str(item.value if isinstance(item, SearchStrategy) else item)
+        .strip()
+        .upper()
+        for item in (state.get("attempted_strategies") or [])
+    }
+
+    current = str(state.get("current_strategy", "")).strip().upper()
+
+    fallback_order = [
+        "RELATED_SKILL",
+        "ROLE",
+        "DOMAIN",
+        "SEMANTIC_SEARCH",
+        "HYBRID_SEARCH",
+        "SOURCE_SEARCH",
+        "EXACT_SKILL",
+    ]
+
+    # Prefer an unattempted strategy different from the current one.
+    for name in fallback_order:
+        if (
+            name in ALLOWED_STRATEGIES
+            and name not in attempted
+            and name != current
+        ):
+            return SearchStrategy(name)
+
+    # If all strategies were attempted, try another valid strategy.
+    for name in fallback_order:
+        if name in ALLOWED_STRATEGIES and name != current:
+            return SearchStrategy(name)
+
+    return next(iter(SearchStrategy))
+
+
+# =========================================================
 # LLM Search Planner
 # =========================================================
 
@@ -198,49 +247,60 @@ Return ONLY one allowed strategy name.
     # Call Groq LLM
     # -----------------------------------------------------
 
-    response = client.chat.completions.create(
-        model="openai/gpt-oss-20b",
-        messages=[
-            {
-                "role": "system",
-                "content": SYSTEM_PROMPT
-            },
-            {
-                "role": "user",
-                "content": user_prompt
-            }
-        ],
-        temperature=0
+    try:
+        response = client.chat.completions.create(
+            model="openai/gpt-oss-20b",
+            messages=[
+                {
+                    "role": "system",
+                    "content": SYSTEM_PROMPT,
+                },
+                {
+                    "role": "user",
+                    "content": user_prompt,
+                },
+            ],
+            temperature=0,
+        )
+
+    except Exception:
+        # Recover from API failures without crashing the planner.
+        return _fallback_strategy(state)
+
+    # -----------------------------------------------------
+    # Read LLM response safely
+    # -----------------------------------------------------
+
+    choices = getattr(response, "choices", None) or []
+
+    content = (
+        getattr(
+            getattr(choices[0], "message", None),
+            "content",
+            None,
+        )
+        if choices
+        else None
     )
 
-    # -----------------------------------------------------
-    # Read LLM response
-    # -----------------------------------------------------
-
     raw_strategy = (
-        response
-        .choices[0]
-        .message
-        .content
-        .strip()
-        .upper()
+        content.strip().upper()
+        if isinstance(content, str)
+        else ""
     )
 
     # -----------------------------------------------------
     # Validate strategy
     # -----------------------------------------------------
 
-    if raw_strategy not in ALLOWED_STRATEGIES:
+    if raw_strategy in ALLOWED_STRATEGIES:
+        return SearchStrategy(raw_strategy)
 
-        raise ValueError(
-            f"LLM returned invalid strategy: "
-            f"{raw_strategy}"
-        )
+    if not raw_strategy:
+        # Recover from an empty response.
+        return _fallback_strategy(state)
 
-    # -----------------------------------------------------
-    # Return enum
-    # -----------------------------------------------------
-
-    return SearchStrategy(
-        raw_strategy
+    # Reject a non-empty, invalid strategy.
+    raise ValueError(
+        f"LLM returned invalid strategy: {raw_strategy}"
     )

@@ -148,7 +148,10 @@ def generate_candidate_id():
     candidates already exist in the store.
     """
 
-    next_number = len(candidate_profiles) + 1
+    next_number = 1
+
+    while f"candidate_{next_number:03d}" in candidate_profiles:
+        next_number += 1
 
     return f"candidate_{next_number:03d}"
 

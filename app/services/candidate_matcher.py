@@ -1,4 +1,4 @@
-from app.services.jd_parser import parse_jd
+﻿from app.services.jd_parser import parse_jd
 from app.services.semantic_matcher import calculate_semantic_score
 
 
@@ -192,9 +192,9 @@ def check_candidate(
                     and required_experience > 0
                 ):
 
-                    closeness = (
-                        candidate_skill_experience
-                        / required_experience
+                    closeness = min(
+                        candidate_skill_experience / required_experience,
+                        1.0
                     )
 
                     experience_closeness.append(
@@ -346,7 +346,6 @@ def check_candidate(
         )
     else:
         final_score = rule_based_score
-
 
 
 

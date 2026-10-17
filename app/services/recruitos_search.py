@@ -75,6 +75,10 @@ def _attach_resume_evidence(candidates):
     chunks_by_candidate = {}
 
     for item in chunks:
+        # Legacy records without is_active remain searchable.
+        if item.get("is_active", True) is False:
+            continue
+
         candidate_id = item.get("candidate_id")
         chunk_text = item.get("chunk", "")
 
