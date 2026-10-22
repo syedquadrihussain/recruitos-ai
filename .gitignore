@@ -1,24 +1,31 @@
-# Python
+﻿# Python
 __pycache__/
 *.py[cod]
 *.pyo
 
-# Virtual Environment
+# Virtual environments
 .venv/
 venv/
 env/
 
-# Environment Variables
+# Environment variables
 .env
 .env.*
+!.env.example
 
 # Uploaded resumes and user files
 uploads/*
 !uploads/.gitkeep
 
-# Generated FAISS files
+# Generated vector-store files
 faiss_index.bin
 chunks.json
+
+# Test and coverage artifacts
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
 
 # Jupyter
 .ipynb_checkpoints/
@@ -33,4 +40,3 @@ Thumbs.db
 
 # Logs
 *.log
-!.env.example
