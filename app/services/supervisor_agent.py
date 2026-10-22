@@ -65,83 +65,40 @@ END
 # Supervisor Decision
 # =========================================================
 
-def choose_next_agent(
-    state: MultiAgentState
-) -> str:
-    """
-    Decide which specialist agent should execute next.
-
-    This first version uses deterministic workflow rules.
-    The LLM-based Supervisor will be introduced after
-    the routing architecture is tested.
-    """
-
-    # -----------------------------------------------------
-    # Workflow already complete
-    # -----------------------------------------------------
+def choose_next_agent(state: MultiAgentState) -> str:
+    """Choose the next step using completion flags and bounded search retries."""
 
     if state.get("workflow_complete", False):
         return "END"
 
-    # -----------------------------------------------------
-    # Target already reached
-    # -----------------------------------------------------
+    target_count = state.get("target_count", 0)
+    shortlisted = state.get("shortlisted_candidates", [])
 
-    target_count = state.get(
-        "target_count",
-        0
-    )
-
-    shortlisted_candidates = state.get(
-        "shortlisted_candidates",
-        []
-    )
-
-    if (
-        target_count > 0
-        and len(shortlisted_candidates) >= target_count
-    ):
+    if target_count > 0 and len(shortlisted) >= target_count:
         return "END"
 
-    # -----------------------------------------------------
-    # No candidates discovered yet
-    # -----------------------------------------------------
-
-    candidates = state.get(
-        "candidates",
-        []
-    )
+    candidates = state.get("candidates", [])
 
     if not candidates:
-        return "SEARCH"
+        attempts = state.get("search_attempts", 0)
+        max_attempts = max(1, state.get("max_search_attempts", 3))
+        return "END" if attempts >= max_attempts else "SEARCH"
 
-    # -----------------------------------------------------
-    # Candidates exist but have not been screened
-    # -----------------------------------------------------
-
-    screened_candidates = state.get(
-        "screened_candidates",
-        []
+    screened = state.get("screened_candidates", [])
+    screening_completed = state.get(
+        "screening_completed", bool(screened)
     )
 
-    if not screened_candidates:
+    if not screening_completed:
         return "SCREENING"
 
-    # -----------------------------------------------------
-    # Candidates have been screened but not matched
-    # -----------------------------------------------------
-
-    matched_candidates = state.get(
-        "matched_candidates",
-        []
+    matched = state.get("matched_candidates", [])
+    matching_completed = state.get(
+        "matching_completed", bool(matched)
     )
 
-    if not matched_candidates:
+    if not matching_completed:
         return "MATCHING"
-
-    # -----------------------------------------------------
-    # Default
-    # -----------------------------------------------------
 
     return "END"
 
@@ -229,9 +186,13 @@ def supervisor_node(
         state["workflow_complete"] = True
 
         if not state.get("stop_reason"):
-
-            state["stop_reason"] = (
-                "SUPERVISOR_COMPLETED"
-            )
+            if (
+                not state.get("candidates", [])
+                and state.get("search_attempts", 0)
+                >= max(1, state.get("max_search_attempts", 3))
+            ):
+                state["stop_reason"] = "SEARCH_ATTEMPTS_EXHAUSTED"
+            else:
+                state["stop_reason"] = "SUPERVISOR_COMPLETED"
 
     return state

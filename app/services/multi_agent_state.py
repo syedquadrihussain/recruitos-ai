@@ -55,3 +55,10 @@ class MultiAgentState(TypedDict):
     next_agent: str
     workflow_complete: bool
     stop_reason: str
+    search_attempts: int
+    max_search_attempts: int
+    last_search_error: str
+    screening_completed: bool
+    matching_completed: bool
+    last_screening_error: str
+    last_matching_error: str
