@@ -39,16 +39,33 @@ def search_agent_node(state: MultiAgentState) -> MultiAgentState:
     if not query:
         query = jd_text.strip()
 
-    required_skills = list(
-        get_required_skill_experience(jd_text).keys()
-    )
+    # Count the attempt before skill extraction and retrieval.
+    # Failures in either operation are handled consistently.
+    state["search_attempts"] = state.get("search_attempts", 0) + 1
 
-    candidates = search_recruitos(
-        query=query,
-        strategy="HYBRID_SEARCH",
-        required_skills=required_skills,
-        top_k=5,
-    )
+    try:
+        required_skills = list(
+            get_required_skill_experience(jd_text).keys()
+        )
+
+        candidates = search_recruitos(
+            query=query,
+            strategy="HYBRID_SEARCH",
+            required_skills=required_skills,
+            top_k=5,
+        )
+
+        state["last_search_error"] = ""
+
+    except Exception as error:
+        # Record the failure and allow the supervisor to decide
+        # whether another bounded search attempt is appropriate.
+        candidates = []
+        state["last_search_error"] = (
+            f"{type(error).__name__}: {error}"
+        )
+
+        print("Search failed:", state["last_search_error"])
 
     state["candidates"] = candidates
     state["last_agent"] = "SEARCH"
@@ -56,7 +73,7 @@ def search_agent_node(state: MultiAgentState) -> MultiAgentState:
     print("Candidates retrieved:", len(candidates))
 
     candidates_with_evidence = sum(
-        bool(candidate.get("resume_text", "").strip())
+        bool((candidate.get("resume_text") or "").strip())
         for candidate in candidates
     )
 
@@ -73,42 +90,69 @@ def search_agent_node(state: MultiAgentState) -> MultiAgentState:
 # =========================================================
 
 def screening_agent_node(state: MultiAgentState) -> MultiAgentState:
-    """Evaluate candidates against the job description."""
+    """Screen candidates independently so one failure does not abort the batch."""
 
     print("\nSCREENING AGENT")
 
     screening_results = []
+    screening_errors = []
     jd_text = state.get("jd_text", "")
+    candidates = state.get("candidates", [])
 
-    for candidate in state.get("candidates", []):
-
-        # Use actual resume text when it is available.
-        resume_text = candidate.get("resume_text")
-
-        result = check_candidate(
-            candidate,
-            jd_text,
-            resume_text=resume_text,
+    for index, candidate in enumerate(candidates):
+        candidate_id = (
+            candidate.get("candidate_id", f"unknown_candidate_{index}")
+            if isinstance(candidate, dict)
+            else f"invalid_candidate_{index}"
         )
 
-        result["candidate_id"] = candidate["candidate_id"]
+        try:
+            if not isinstance(candidate, dict):
+                raise TypeError("Candidate record must be a dictionary")
 
-        screening_results.append(result)
+            result = check_candidate(
+                candidate,
+                jd_text,
+                resume_text=candidate.get("resume_text"),
+            )
+
+            if not isinstance(result, dict):
+                raise TypeError("check_candidate must return a dictionary")
+
+            # Keep downstream ranker inputs explicit and predictable.
+            result = dict(result)
+            result.setdefault("candidate_id", candidate_id)
+
+            if "qualified" not in result or "final_score" not in result:
+                raise ValueError(
+                    "Screening result must contain qualified and final_score"
+                )
+
+            screening_results.append(result)
+
+        except Exception as error:
+            message = (
+                f"{candidate_id}: {type(error).__name__}: {error}"
+            )
+            screening_errors.append(message)
+            print("Candidate screening failed:", message)
 
     state["screened_candidates"] = screening_results
+    state["screening_completed"] = True
+    state["last_screening_error"] = "\n".join(screening_errors)
     state["last_agent"] = "SCREENING"
 
-    print("Candidates screened:", len(screening_results))
+    if candidates and not screening_results:
+        state["workflow_complete"] = True
+        state["stop_reason"] = "SCREENING_FAILED"
+    elif screening_errors:
+        if not state.get("stop_reason"):
+            state["stop_reason"] = "SCREENING_PARTIAL_FAILURE"
+    elif state.get("stop_reason") == "SCREENING_PARTIAL_FAILURE":
+        state["stop_reason"] = ""
 
-    candidates_with_evidence = sum(
-        bool(candidate.get("semantic_matches"))
-        for candidate in screening_results
-    )
-
-    print(
-        "Candidates with semantic matches:",
-        candidates_with_evidence,
-    )
+    print("Candidates screened successfully:", len(screening_results))
+    print("Candidate screening errors:", len(screening_errors))
 
     return state
 
@@ -118,45 +162,67 @@ def screening_agent_node(state: MultiAgentState) -> MultiAgentState:
 # =========================================================
 
 def matching_agent_node(state: MultiAgentState) -> MultiAgentState:
-    """Rank candidates and create a qualified shortlist."""
+    """Rank screened candidates and stop safely if ranking fails."""
 
     print("\nMATCHING AGENT")
 
-    # Rank all screened candidates.
-    ranked_candidates = rank_candidates(
-        state.get("screened_candidates", [])
-    )
+    try:
+        ranked_candidates = rank_candidates(
+            state.get("screened_candidates", [])
+        )
 
-    state["matched_candidates"] = ranked_candidates
+        if not isinstance(ranked_candidates, list):
+            raise TypeError("rank_candidates must return a list")
 
-    # Keep only candidates who passed mandatory requirements.
-    qualified_candidates = [
-        candidate
-        for candidate in ranked_candidates
-        if candidate.get("qualified") is True
-    ]
+        for candidate in ranked_candidates:
+            if not isinstance(candidate, dict):
+                raise TypeError("Ranked candidate must be a dictionary")
+            if "qualified" not in candidate or "final_score" not in candidate:
+                raise ValueError(
+                    "Ranked candidate must contain qualified and final_score"
+                )
 
-    # Select up to the requested number of qualified candidates.
-    target_count = state.get("target_count", 2)
+        qualified_candidates = [
+            candidate
+            for candidate in ranked_candidates
+            if candidate.get("qualified") is True
+        ]
 
-    state["shortlisted_candidates"] = (
-        qualified_candidates[:target_count]
-    )
+        target_count = max(0, state.get("target_count", 2))
 
-    state["last_agent"] = "MATCHING"
+        state["matched_candidates"] = ranked_candidates
+        state["shortlisted_candidates"] = qualified_candidates[:target_count]
+        state["matching_completed"] = True
+        state["last_matching_error"] = ""
+        state["last_agent"] = "MATCHING"
 
-    print("Candidates ranked:", len(ranked_candidates))
-    print("Qualified candidates:", len(qualified_candidates))
-    print(
-        "Shortlisted candidates:",
-        len(state["shortlisted_candidates"]),
-    )
+        if state.get("stop_reason") == "MATCHING_FAILED":
+            state["stop_reason"] = ""
+
+        print("Candidates ranked:", len(ranked_candidates))
+        print("Qualified candidates:", len(qualified_candidates))
+        print("Shortlisted candidates:", len(state["shortlisted_candidates"]))
+
+    except Exception as error:
+        state["matched_candidates"] = []
+        state["shortlisted_candidates"] = []
+        state["matching_completed"] = False
+        state["last_matching_error"] = (
+            f"{type(error).__name__}: {error}"
+        )
+        state["workflow_complete"] = True
+        state["stop_reason"] = "MATCHING_FAILED"
+        state["last_agent"] = "MATCHING"
+
+        print("Matching failed:", state["last_matching_error"])
 
     return state
 
 
 # =========================================================
-# Build Multi-Agent Graph
+# Matching and Shortlisting Agent
+
+
 # =========================================================
 
 def build_multi_agent_graph():
@@ -216,6 +282,13 @@ if __name__ == "__main__":
         "next_agent": "",
         "workflow_complete": False,
         "stop_reason": "",
+        "search_attempts": 0,
+        "max_search_attempts": 3,
+        "last_search_error": "",
+        "screening_completed": False,
+        "matching_completed": False,
+        "last_screening_error": "",
+        "last_matching_error": "",
     }
 
     final_state = graph.invoke(initial_state)
