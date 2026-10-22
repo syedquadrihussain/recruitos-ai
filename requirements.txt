@@ -1,5 +1,6 @@
-fastapi
+﻿fastapi
 uvicorn
+pydantic
 python-multipart
 pymupdf
 python-docx
@@ -11,3 +12,7 @@ python-dotenv
 langchain
 langchain-groq
 langgraph
+
+# Test dependencies
+pytest
+httpx
